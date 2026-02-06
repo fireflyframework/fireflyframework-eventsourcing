@@ -16,6 +16,7 @@
 
 package org.fireflyframework.eventsourcing.config;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -69,8 +70,7 @@ public class EventSourcingJacksonConfiguration {
         mapper.enable(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL);
         
         // Null handling
-        mapper.disable(SerializationFeature.WRITE_NULL_MAP_VALUES);
-        mapper.enable(SerializationFeature.WRITE_EMPTY_JSON_ARRAYS);
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         
         // Configure polymorphic type handling for Events
         configurePolymorphicTypeHandling(mapper);
