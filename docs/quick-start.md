@@ -37,7 +37,7 @@ public class AccountLedgerReadModel { }
 ## Prerequisites
 
 - Java 21+
-- Spring Boot 3.2+
+- Spring Boot 3.5+
 - R2DBC compatible database (PostgreSQL recommended)
 - Maven or Gradle
 

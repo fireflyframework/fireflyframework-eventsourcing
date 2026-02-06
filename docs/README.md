@@ -140,7 +140,7 @@ public class Account extends AggregateRoot {
 ## System Requirements
 
 - Java 21+
-- Spring Boot 3.2+
+- Spring Boot 3.5+
 - Project Reactor
 - R2DBC compatible database (PostgreSQL, MySQL, H2)
 - fireflyframework-r2dbc for database operations
