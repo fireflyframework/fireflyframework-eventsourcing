@@ -179,7 +179,7 @@ firefly:
 
 logging:
   level:
-    com.firefly: DEBUG
+    org.fireflyframework: DEBUG
     org.springframework.r2dbc: INFO
 ```
 

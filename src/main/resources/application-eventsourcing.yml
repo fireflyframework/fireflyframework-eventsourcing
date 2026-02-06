@@ -99,9 +99,9 @@ management:
 # Logging configuration for projections
 logging:
   level:
-    com.firefly.common.eventsourcing.projection: DEBUG
-    com.firefly.common.eventsourcing.health: INFO
-    com.firefly.common.eventsourcing.examples: DEBUG
+    org.fireflyframework.eventsourcing.projection: DEBUG
+    org.fireflyframework.eventsourcing.health: INFO
+    org.fireflyframework.eventsourcing.examples: DEBUG
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 

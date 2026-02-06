@@ -17,7 +17,7 @@ spring:
 # Logging configuration for tests
 logging:
   level:
-    com.firefly.common.eventsourcing: DEBUG
+    org.fireflyframework.eventsourcing: DEBUG
     reactor.netty: WARN
     io.r2dbc: DEBUG
     org.testcontainers: INFO

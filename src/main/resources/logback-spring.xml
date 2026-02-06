@@ -229,47 +229,47 @@
     <!-- Logger configurations -->
 
     <!-- Event Store logging -->
-    <logger name="com.firefly.common.eventsourcing.store" level="INFO" additivity="false">
+    <logger name="org.fireflyframework.eventsourcing.store" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="ASYNC_EVENT_STORE_FILE"/>
         <appender-ref ref="ASYNC_FILE"/>
     </logger>
 
     <!-- Aggregate logging -->
-    <logger name="com.firefly.common.eventsourcing.aggregate" level="INFO" additivity="false">
+    <logger name="org.fireflyframework.eventsourcing.aggregate" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="ASYNC_AGGREGATE_FILE"/>
         <appender-ref ref="ASYNC_FILE"/>
     </logger>
 
     <!-- Event Publisher logging -->
-    <logger name="com.firefly.common.eventsourcing.publisher" level="INFO" additivity="false">
+    <logger name="org.fireflyframework.eventsourcing.publisher" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="ASYNC_PUBLISHER_FILE"/>
         <appender-ref ref="ASYNC_FILE"/>
     </logger>
 
     <!-- Transaction logging -->
-    <logger name="com.firefly.common.eventsourcing.transaction" level="INFO" additivity="false">
+    <logger name="org.fireflyframework.eventsourcing.transaction" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="ASYNC_FILE"/>
     </logger>
 
     <!-- Snapshot logging -->
-    <logger name="com.firefly.common.eventsourcing.snapshot" level="INFO" additivity="false">
+    <logger name="org.fireflyframework.eventsourcing.snapshot" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="ASYNC_SNAPSHOT_FILE"/>
         <appender-ref ref="ASYNC_FILE"/>
     </logger>
 
     <!-- Projection logging -->
-    <logger name="com.firefly.common.eventsourcing.projection" level="INFO" additivity="false">
+    <logger name="org.fireflyframework.eventsourcing.projection" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="ASYNC_FILE"/>
     </logger>
 
     <!-- Event Outbox logging -->
-    <logger name="com.firefly.common.eventsourcing.outbox" level="INFO" additivity="false">
+    <logger name="org.fireflyframework.eventsourcing.outbox" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="ASYNC_OUTBOX_FILE"/>
         <appender-ref ref="ASYNC_FILE"/>
@@ -293,7 +293,7 @@
 
     <!-- Profile-specific configurations -->
     <springProfile name="dev,local">
-        <logger name="com.firefly.common.eventsourcing" level="DEBUG"/>
+        <logger name="org.fireflyframework.eventsourcing" level="DEBUG"/>
         <logger name="io.r2dbc.postgresql.QUERY" level="DEBUG"/>
         <!-- Use pretty console output for local development -->
         <root level="INFO">
@@ -303,14 +303,14 @@
     </springProfile>
 
     <springProfile name="test">
-        <logger name="com.firefly.common.eventsourcing" level="DEBUG"/>
+        <logger name="org.fireflyframework.eventsourcing" level="DEBUG"/>
         <root level="WARN">
             <appender-ref ref="CONSOLE"/>
         </root>
     </springProfile>
 
     <springProfile name="prod,production">
-        <logger name="com.firefly.common.eventsourcing" level="INFO"/>
+        <logger name="org.fireflyframework.eventsourcing" level="INFO"/>
         <!-- Production uses JSON logging only -->
         <root level="WARN">
             <appender-ref ref="CONSOLE"/>

@@ -135,7 +135,7 @@ Ask yourself these questions:
 #### ✅ Use Event Sourcing if you answer YES to any of these:
 
 1. **"Do I need to know WHAT happened, not just the current state?"**
-   - Example: Banking - "Show me all transactions for this account"
+   - Example: Financial - "Show me all transactions for this account"
    - Example: Healthcare - "What treatments did this patient receive?"
 
 2. **"Do I need to know WHEN something happened?"**
@@ -174,7 +174,7 @@ Ask yourself these questions:
 
 ### Real-World Use Cases
 
-**✅ Banking (Perfect Fit):**
+**✅ Financial Systems (Perfect Fit):**
 ```
 Question: "What was the account balance on December 31st for tax purposes?"
 Event Sourcing: Replay all events up to Dec 31 → Exact balance ✅
@@ -231,8 +231,8 @@ Traditional DB: SELECT * FROM posts WHERE status='published' → Simple ✅
 
 ```xml
 <dependency>
-    <groupId>com.firefly</groupId>
-    <artifactId>lib-common-eventsourcing</artifactId>
+    <groupId>org.fireflyframework</groupId>
+    <artifactId>fireflyframework-eventsourcing</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -543,7 +543,7 @@ getBalanceAt("2025-10-17T15:30:00Z")  -- What was the balance yesterday at 3:30 
 
 ### 📚 Learning Approach
 
-We'll build a **complete banking account system** step by step. Each step builds on the previous one.
+We'll build a **complete account system** step by step. Each step builds on the previous one.
 
 **What we're building:**
 A bank account that can:
@@ -1207,7 +1207,7 @@ public class AccountController {
 
 ### 🎉 What You Get
 
-Congratulations! You now have a complete event-sourced banking system. Here's what you've built:
+Congratulations! You now have a complete event-sourced system. Here's what you've built:
 
 #### ✅ Complete Audit Trail
 ```sql
@@ -1527,7 +1527,7 @@ class AccountLedgerIntegrationTest {
 
 ### 💡 Examples
 
-- **[Banking Example](./docs/examples/banking-example.md)** - Complete banking system
+- **[Banking Example](./docs/examples/banking-example.md)** - Complete example system
 - **[Improved Developer Experience](./docs/examples/improved-developer-experience.md)** - Using AbstractDomainEvent
 
 ---
@@ -1573,10 +1573,10 @@ class AccountLedgerIntegrationTest {
 
 ## Integration with Other Firefly Libraries
 
-- **[lib-common-r2dbc](https://github.com/firefly-oss/lib-common-r2dbc)** - Reactive database access and transaction management
-- **[lib-common-eda](https://github.com/firefly-oss/lib-common-eda)** - Event publishing to Kafka and other message brokers
-- **[lib-transactional-engine](https://github.com/firefly-oss/lib-transactional-engine)** - Saga orchestration for distributed transactions
-- **[lib-common-cache](https://github.com/firefly-oss/lib-common-cache)** - Snapshot caching and performance optimization
+- **[fireflyframework-r2dbc](https://github.org/fireflyframework-oss/fireflyframework-r2dbc)** - Reactive database access and transaction management
+- **[fireflyframework-eda](https://github.org/fireflyframework-oss/fireflyframework-eda)** - Event publishing to Kafka and other message brokers
+- **[lib-transactional-engine](https://github.org/fireflyframework-oss/lib-transactional-engine)** - Saga orchestration for distributed transactions
+- **[fireflyframework-cache](https://github.org/fireflyframework-oss/fireflyframework-cache)** - Snapshot caching and performance optimization
 
 ---
 
@@ -1588,7 +1588,7 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 
 ## License
 
-Copyright 2025 Firefly Software Solutions Inc
+Copyright 2024-2026 Firefly Software Solutions Inc
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1607,8 +1607,8 @@ limitations under the License.
 ## Support
 
 - 📧 **Email**: support@getfirefly.io
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/firefly-oss/lib-common-eventsourcing/discussions)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/firefly-oss/lib-common-eventsourcing/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.org/fireflyframework-oss/fireflyframework-eventsourcing/discussions)
+- 🐛 **Issues**: [GitHub Issues](https://github.org/fireflyframework-oss/fireflyframework-eventsourcing/issues)
 - 📖 **Documentation**: [Full Documentation](./docs/)
 
 ---

@@ -81,10 +81,10 @@ Events are **immutable facts** about what happened in the account's lifecycle. T
 ### Core Account Events
 
 ```java
-package com.firefly.banking.ledger.events;
+package org.fireflyframework.banking.ledger.events;
 
-import com.firefly.common.eventsourcing.annotation.DomainEvent;
-import com.firefly.common.eventsourcing.domain.AbstractDomainEvent;
+import org.fireflyframework.eventsourcing.annotation.DomainEvent;
+import org.fireflyframework.eventsourcing.domain.AbstractDomainEvent;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -198,10 +198,10 @@ The **Account** aggregate is the consistency boundary that:
 - Maintains current state (derived from events)
 
 ```java
-package com.firefly.banking.ledger;
+package org.fireflyframework.banking.ledger;
 
-import com.firefly.common.eventsourcing.aggregate.AggregateRoot;
-import com.firefly.banking.ledger.events.*;
+import org.fireflyframework.eventsourcing.aggregate.AggregateRoot;
+import org.fireflyframework.banking.ledger.events.*;
 import lombok.Getter;
 
 import java.math.BigDecimal;
@@ -358,11 +358,11 @@ The Event Store persists events and reconstructs aggregates from their event his
 ### Saving Events (Commands)
 
 ```java
-package com.firefly.banking.ledger.service;
+package org.fireflyframework.banking.ledger.service;
 
-import com.firefly.common.eventsourcing.annotation.EventSourcingTransactional;
-import com.firefly.common.eventsourcing.store.EventStore;
-import com.firefly.banking.ledger.AccountLedger;
+import org.fireflyframework.eventsourcing.annotation.EventSourcingTransactional;
+import org.fireflyframework.eventsourcing.store.EventStore;
+import org.fireflyframework.banking.ledger.AccountLedger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -527,9 +527,9 @@ The library provides `AbstractSnapshot` base class that handles common snapshot 
 ### Account Snapshot
 
 ```java
-package com.firefly.banking.ledger.snapshot;
+package org.fireflyframework.banking.ledger.snapshot;
 
-import com.firefly.common.eventsourcing.snapshot.AbstractSnapshot;
+import org.fireflyframework.eventsourcing.snapshot.AbstractSnapshot;
 import lombok.Getter;
 
 import java.math.BigDecimal;
@@ -1076,10 +1076,10 @@ ORDER BY aggregate_version;
 Here's a complete end-to-end example showing all features:
 
 ```java
-package com.firefly.banking.ledger.example;
+package org.fireflyframework.banking.ledger.example;
 
-import com.firefly.banking.ledger.AccountLedger;
-import com.firefly.banking.ledger.service.AccountLedgerService;
+import org.fireflyframework.banking.ledger.AccountLedger;
+import org.fireflyframework.banking.ledger.service.AccountLedgerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;

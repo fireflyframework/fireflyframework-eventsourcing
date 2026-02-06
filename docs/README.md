@@ -25,7 +25,7 @@ Welcome to the comprehensive documentation for the Firefly Event Sourcing Librar
 ## 🚀 **Why This Library?**
 
 ### **Built for Financial Services**
-- 🏦 **Regulatory Compliance** - Complete audit trails for banking regulations
+- 🏦 **Regulatory Compliance** - Complete audit trails for regulatory requirements
 - 🔒 **Optimistic Locking** - Handle concurrent transactions safely
 - 📊 **Rich Analytics** - Query transaction patterns and fraud detection
 - ⏰ **Temporal Queries** - "What was the account balance on March 15th?"
@@ -49,7 +49,7 @@ Welcome to the comprehensive documentation for the Firefly Event Sourcing Librar
 - [**Snapshot Management**](./snapshots.md) - Performance optimization with snapshots
 
 ### 🔧 Integration & Operations
-- [**lib-common-r2dbc Integration**](./r2dbc-integration.md) - Database integration details
+- [**fireflyframework-r2dbc Integration**](./r2dbc-integration.md) - Database integration details
 - [**EDA Integration**](./eda-integration.md) - Event publishing and messaging
 - [**Monitoring & Health**](./monitoring.md) - Production monitoring setup
 - [**Performance Tuning**](./performance.md) - Optimization strategies
@@ -74,7 +74,7 @@ The Firefly Event Sourcing Library provides:
 - **🏗️ Aggregate Framework**: Base classes for domain-driven design
 - **📸 Snapshot Support**: Automatic performance optimization
 - **🔄 EDA Integration**: Seamless message publishing
-- **🗄️ R2DBC Integration**: Leverages lib-common-r2dbc utilities
+- **🗄️ R2DBC Integration**: Leverages fireflyframework-r2dbc utilities
 - **🔧 Auto-Configuration**: Spring Boot ready
 
 ## Getting Started
@@ -83,8 +83,8 @@ The Firefly Event Sourcing Library provides:
 
 ```xml
 <dependency>
-    <groupId>com.firefly</groupId>
-    <artifactId>lib-common-eventsourcing</artifactId>
+    <groupId>org.fireflyframework</groupId>
+    <artifactId>fireflyframework-eventsourcing</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -122,12 +122,12 @@ public class Account extends AggregateRoot {
 
 ### Core Packages
 
-- `com.firefly.common.eventsourcing.domain` - Core domain abstractions
-- `com.firefly.common.eventsourcing.aggregate` - Aggregate root implementation
-- `com.firefly.common.eventsourcing.store` - Event persistence layer
-- `com.firefly.common.eventsourcing.snapshot` - Snapshot management
-- `com.firefly.common.eventsourcing.publisher` - Event publishing
-- `com.firefly.common.eventsourcing.config` - Configuration and auto-setup
+- `org.fireflyframework.eventsourcing.domain` - Core domain abstractions
+- `org.fireflyframework.eventsourcing.aggregate` - Aggregate root implementation
+- `org.fireflyframework.eventsourcing.store` - Event persistence layer
+- `org.fireflyframework.eventsourcing.snapshot` - Snapshot management
+- `org.fireflyframework.eventsourcing.publisher` - Event publishing
+- `org.fireflyframework.eventsourcing.config` - Configuration and auto-setup
 
 ### Primary Interfaces
 
@@ -143,11 +143,11 @@ public class Account extends AggregateRoot {
 - Spring Boot 3.2+
 - Project Reactor
 - R2DBC compatible database (PostgreSQL, MySQL, H2)
-- lib-common-r2dbc for database operations
+- fireflyframework-r2dbc for database operations
 
 ## Production Readiness
 
-This library has been designed for production use in the Firefly banking platform:
+This library has been designed for production use in the Firefly Framework:
 
 - ✅ **Transaction Safety** - ACID compliance for event persistence
 - ✅ **Optimistic Locking** - Concurrency control with version checking
@@ -162,4 +162,4 @@ For questions, issues, or contributions, please refer to the Firefly development
 
 ## License
 
-Copyright 2025 Firefly Software Solutions Inc. Licensed under the Apache License, Version 2.0.
+Copyright 2024-2026 Firefly Software Solutions Inc. Licensed under the Apache License, Version 2.0.

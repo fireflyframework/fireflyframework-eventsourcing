@@ -1,6 +1,6 @@
 spring:
   application:
-    name: lib-common-eventsourcing
+    name: fireflyframework-eventsourcing
     version: 1.0.0-SNAPSHOT
     description: Firefly Event Sourcing Library
     team:
@@ -104,7 +104,7 @@ spring:
 logging:
   level:
     root: INFO
-    com.firefly: DEBUG
+    org.fireflyframework: DEBUG
     org.springframework.r2dbc: DEBUG
     org.springframework.transaction: DEBUG
     org.flywaydb: DEBUG
@@ -133,7 +133,7 @@ spring:
 logging:
   level:
     root: WARN
-    com.firefly: DEBUG
+    org.fireflyframework: DEBUG
     org.springframework.r2dbc: INFO
 
 firefly:
@@ -154,7 +154,7 @@ spring:
 logging:
   level:
     root: WARN
-    com.firefly: INFO
+    org.fireflyframework: INFO
     org.springframework: WARN
 
 firefly:

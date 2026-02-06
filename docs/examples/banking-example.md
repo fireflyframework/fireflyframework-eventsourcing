@@ -36,10 +36,10 @@ This example demonstrates a realistic banking application with accounts, transac
 ### Account Events
 
 ```java
-package com.firefly.banking.domain.events;
+package org.fireflyframework.banking.domain.events;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.firefly.common.eventsourcing.domain.Event;
+import org.fireflyframework.eventsourcing.domain.Event;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -223,10 +223,10 @@ public record AccountUnfrozenEvent(
 ### Account Aggregate
 
 ```java
-package com.firefly.banking.domain.aggregates;
+package org.fireflyframework.banking.domain.aggregates;
 
-import com.firefly.common.eventsourcing.aggregate.AggregateRoot;
-import com.firefly.banking.domain.events.*;
+import org.fireflyframework.eventsourcing.aggregate.AggregateRoot;
+import org.fireflyframework.banking.domain.events.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -438,11 +438,11 @@ public class Account extends AggregateRoot {
 ### Account Service
 
 ```java
-package com.firefly.banking.application.services;
+package org.fireflyframework.banking.application.services;
 
-import com.firefly.common.eventsourcing.store.EventStore;
-import com.firefly.banking.domain.aggregates.Account;
-import com.firefly.banking.application.dto.*;
+import org.fireflyframework.eventsourcing.store.EventStore;
+import org.fireflyframework.banking.domain.aggregates.Account;
+import org.fireflyframework.banking.application.dto.*;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -590,7 +590,7 @@ public class AccountService {
 ### DTOs and Requests
 
 ```java
-package com.firefly.banking.application.dto;
+package org.fireflyframework.banking.application.dto;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -647,10 +647,10 @@ public record UnfreezeAccountRequest(
 ### Account Controller
 
 ```java
-package com.firefly.banking.presentation.controllers;
+package org.fireflyframework.banking.presentation.controllers;
 
-import com.firefly.banking.application.services.AccountService;
-import com.firefly.banking.application.dto.*;
+import org.fireflyframework.banking.application.services.AccountService;
+import org.fireflyframework.banking.application.dto.*;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -711,7 +711,7 @@ public class AccountController {
 ### Custom Exceptions
 
 ```java
-package com.firefly.banking.domain.exceptions;
+package org.fireflyframework.banking.domain.exceptions;
 
 import java.util.UUID;
 
@@ -795,11 +795,11 @@ firefly:
 ### Integration Tests
 
 ```java
-package com.firefly.banking.integration;
+package org.fireflyframework.banking.integration;
 
-import com.firefly.banking.application.services.AccountService;
-import com.firefly.banking.application.dto.*;
-import com.firefly.common.eventsourcing.store.EventStore;
+import org.fireflyframework.banking.application.services.AccountService;
+import org.fireflyframework.banking.application.dto.*;
+import org.fireflyframework.eventsourcing.store.EventStore;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

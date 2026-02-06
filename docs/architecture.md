@@ -4,7 +4,7 @@ This document provides a comprehensive overview of the Firefly Event Sourcing Li
 
 ## System Overview
 
-The Firefly Event Sourcing Library follows the principles of Domain-Driven Design (DDD) and Event Sourcing, providing a production-ready implementation for building event-sourced systems in the Firefly banking platform.
+The Firefly Event Sourcing Library follows the principles of Domain-Driven Design (DDD) and Event Sourcing, providing a production-ready implementation for building event-sourced systems in the Firefly Framework.
 
 ### Core Principles
 
@@ -49,12 +49,12 @@ The Firefly Event Sourcing Library follows the principles of Domain-Driven Desig
 ### 1. Domain Layer
 
 #### Event Interface
-- **Package**: `com.firefly.common.eventsourcing.domain`
+- **Package**: `org.fireflyframework.eventsourcing.domain`
 - **Purpose**: Defines the contract for domain events
 - **Key Methods**: `getEventType()`, `getAggregateId()`, `getEventTimestamp()`, `getMetadata()`
 
 #### AggregateRoot Class
-- **Package**: `com.firefly.common.eventsourcing.aggregate`
+- **Package**: `org.fireflyframework.eventsourcing.aggregate`
 - **Purpose**: Base class for all event-sourced aggregates
 - **Features**:
   - Event application with `applyChange()`
@@ -64,40 +64,40 @@ The Firefly Event Sourcing Library follows the principles of Domain-Driven Desig
   - Reflection-based event handler invocation
 
 #### EventEnvelope Class
-- **Package**: `com.firefly.common.eventsourcing.domain`
+- **Package**: `org.fireflyframework.eventsourcing.domain`
 - **Purpose**: Wraps domain events with persistence metadata
 - **Contains**: Event ID, aggregate info, versioning, timestamps, metadata
 
 #### EventStream Class
-- **Package**: `com.firefly.common.eventsourcing.domain`
+- **Package**: `org.fireflyframework.eventsourcing.domain`
 - **Purpose**: Collection of events for an aggregate
 - **Features**: Filtering, querying, statistics
 
 ### 2. Persistence Layer
 
 #### EventStore Interface
-- **Package**: `com.firefly.common.eventsourcing.store`
+- **Package**: `org.fireflyframework.eventsourcing.store`
 - **Purpose**: Main interface for event persistence and retrieval
 - **Implementations**: `R2dbcEventStore` (primary)
 
 #### R2dbcEventStore Implementation
-- **Package**: `com.firefly.common.eventsourcing.store.r2dbc`
+- **Package**: `org.fireflyframework.eventsourcing.store.r2dbc`
 - **Features**:
   - Reactive database operations
   - Transaction management with `TransactionalOperator`
   - Optimistic concurrency control
   - Event streaming capabilities
-  - Integration with lib-common-r2dbc
+  - Integration with fireflyframework-r2dbc
 
 #### SnapshotStore Interface
-- **Package**: `com.firefly.common.eventsourcing.snapshot`
+- **Package**: `org.fireflyframework.eventsourcing.snapshot`
 - **Purpose**: Snapshot persistence for performance optimization
 - **Features**: Save, load, delete snapshots with versioning
 
 ### 3. Transaction Management Layer
 
 #### @EventSourcingTransactional Annotation
-- **Package**: `com.firefly.common.eventsourcing.annotation`
+- **Package**: `org.fireflyframework.eventsourcing.annotation`
 - **Purpose**: Declarative transaction management for event sourcing operations
 - **Features**:
   - Full ACID guarantees (Atomicity, Consistency, Isolation, Durability)
@@ -111,7 +111,7 @@ The Firefly Event Sourcing Library follows the principles of Domain-Driven Desig
   - Read-only transaction optimization
 
 #### EventSourcingTransactionalAspect
-- **Package**: `com.firefly.common.eventsourcing.transaction`
+- **Package**: `org.fireflyframework.eventsourcing.transaction`
 - **Purpose**: AOP aspect that intercepts @EventSourcingTransactional methods
 - **Implementation**:
   - Uses Spring AOP with AspectJ annotations
@@ -139,7 +139,7 @@ The Firefly Event Sourcing Library follows the principles of Domain-Driven Desig
 7. Return result to caller
 
 #### @DomainEvent Annotation
-- **Package**: `com.firefly.common.eventsourcing.annotation`
+- **Package**: `org.fireflyframework.eventsourcing.annotation`
 - **Purpose**: Declarative event type definition aligned with Spring conventions
 - **Features**:
   - Combines @JsonTypeName for Jackson polymorphic serialization
@@ -150,12 +150,12 @@ The Firefly Event Sourcing Library follows the principles of Domain-Driven Desig
 ### 4. Integration Layer
 
 #### EventSourcingPublisher
-- **Package**: `com.firefly.common.eventsourcing.publisher`
+- **Package**: `org.fireflyframework.eventsourcing.publisher`
 - **Purpose**: Publishes events to external message systems
-- **Integration**: Uses lib-common-eda for message bus abstraction
+- **Integration**: Uses fireflyframework-eda for message bus abstraction
 
 #### Configuration System
-- **Package**: `com.firefly.common.eventsourcing.config`
+- **Package**: `org.fireflyframework.eventsourcing.config`
 - **Components**:
   - `EventSourcingProperties`: Configuration properties
   - `EventSourcingAutoConfiguration`: Spring Boot auto-configuration
@@ -248,9 +248,9 @@ AggregateRoot.applyEvent()
 Reconstructed Aggregate
 ```
 
-## Integration with lib-common-r2dbc
+## Integration with fireflyframework-r2dbc
 
-The event sourcing library leverages the existing lib-common-r2dbc infrastructure:
+The event sourcing library leverages the existing fireflyframework-r2dbc infrastructure:
 
 ### Database Operations
 - **DatabaseClient**: For custom SQL queries
@@ -429,7 +429,7 @@ RuntimeException
 - Compression and caching support
 
 ### 3. Connection Management
-- R2DBC connection pooling through lib-common-r2dbc
+- R2DBC connection pooling through fireflyframework-r2dbc
 - Configurable pool sizes and timeouts
 - Connection health monitoring
 
@@ -516,4 +516,4 @@ RuntimeException
                   └─────────────┘
 ```
 
-This architecture provides a robust foundation for building event-sourced systems within the Firefly banking platform, ensuring scalability, reliability, and maintainability.
+This architecture provides a robust foundation for building event-sourced systems within the Firefly Framework, ensuring scalability, reliability, and maintainability.

@@ -47,8 +47,8 @@ public class AccountLedgerReadModel { }
 
 ```xml
 <dependency>
-    <groupId>com.firefly</groupId>
-    <artifactId>lib-common-eventsourcing</artifactId>
+    <groupId>org.fireflyframework</groupId>
+    <artifactId>fireflyframework-eventsourcing</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
 
@@ -62,7 +62,7 @@ public class AccountLedgerReadModel { }
 ### Gradle
 
 ```kotlin
-implementation 'com.firefly:lib-common-eventsourcing:1.0.0-SNAPSHOT'
+implementation 'org.fireflyframework:fireflyframework-eventsourcing:1.0.0-SNAPSHOT'
 implementation 'org.postgresql:r2dbc-postgresql'
 ```
 
@@ -138,10 +138,10 @@ firefly:
 Use the `@DomainEvent` annotation for automatic event type registration:
 
 ```java
-package com.firefly.common.eventsourcing.examples.ledger.events;
+package org.fireflyframework.eventsourcing.examples.ledger.events;
 
-import com.firefly.common.eventsourcing.domain.AbstractDomainEvent;
-import com.firefly.common.eventsourcing.domain.DomainEvent;
+import org.fireflyframework.eventsourcing.domain.AbstractDomainEvent;
+import org.fireflyframework.eventsourcing.domain.DomainEvent;
 import lombok.Getter;
 
 import java.math.BigDecimal;
@@ -194,12 +194,12 @@ public class MoneyDepositedEvent extends AbstractDomainEvent {
 The aggregate enforces business rules and generates events:
 
 ```java
-package com.firefly.common.eventsourcing.examples.ledger;
+package org.fireflyframework.eventsourcing.examples.ledger;
 
-import com.firefly.common.eventsourcing.aggregate.AggregateRoot;
-import com.firefly.common.eventsourcing.aggregate.EventHandler;
-import com.firefly.common.eventsourcing.examples.ledger.events.*;
-import com.firefly.common.eventsourcing.examples.ledger.exceptions.*;
+import org.fireflyframework.eventsourcing.aggregate.AggregateRoot;
+import org.fireflyframework.eventsourcing.aggregate.EventHandler;
+import org.fireflyframework.eventsourcing.examples.ledger.events.*;
+import org.fireflyframework.eventsourcing.examples.ledger.exceptions.*;
 import lombok.Getter;
 
 import java.math.BigDecimal;
@@ -279,11 +279,11 @@ public class AccountLedger extends AggregateRoot {
 Use `@EventSourcingTransactional` for automatic event persistence:
 
 ```java
-package com.firefly.common.eventsourcing.examples.ledger;
+package org.fireflyframework.eventsourcing.examples.ledger;
 
-import com.firefly.common.eventsourcing.annotation.EventSourcingTransactional;
-import com.firefly.common.eventsourcing.snapshot.SnapshotStore;
-import com.firefly.common.eventsourcing.store.EventStore;
+import org.fireflyframework.eventsourcing.annotation.EventSourcingTransactional;
+import org.fireflyframework.eventsourcing.snapshot.SnapshotStore;
+import org.fireflyframework.eventsourcing.store.EventStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;

@@ -12,7 +12,7 @@ Circuit breaker pattern implementation using Resilience4j to prevent cascading f
 ### Components
 
 #### CircuitBreakerConfiguration
-- **Location**: `com.firefly.common.eventsourcing.resilience.CircuitBreakerConfiguration`
+- **Location**: `org.fireflyframework.eventsourcing.resilience.CircuitBreakerConfiguration`
 - **Purpose**: Auto-configuration for circuit breakers
 - **Activation**: Set `firefly.eventsourcing.resilience.circuit-breaker.enabled=true`
 
@@ -65,7 +65,7 @@ OpenTelemetry instrumentation for distributed tracing of event sourcing operatio
 ### Components
 
 #### OpenTelemetryConfiguration
-- **Location**: `com.firefly.common.eventsourcing.tracing.OpenTelemetryConfiguration`
+- **Location**: `org.fireflyframework.eventsourcing.tracing.OpenTelemetryConfiguration`
 - **Purpose**: Configures OpenTelemetry tracer for event sourcing
 - **Activation**: Set `firefly.eventsourcing.tracing.enabled=true`
 
@@ -114,7 +114,7 @@ Automatic event schema migration framework for handling event versioning and sch
 ### Components
 
 #### EventUpcaster Interface
-- **Location**: `com.firefly.common.eventsourcing.upcasting.EventUpcaster`
+- **Location**: `org.fireflyframework.eventsourcing.upcasting.EventUpcaster`
 - **Purpose**: Define transformations from old event versions to new versions
 
 ```java
@@ -127,7 +127,7 @@ public interface EventUpcaster {
 ```
 
 #### EventUpcastingService
-- **Location**: `com.firefly.common.eventsourcing.upcasting.EventUpcastingService`
+- **Location**: `org.fireflyframework.eventsourcing.upcasting.EventUpcastingService`
 - **Purpose**: Manages and applies upcasters in sequence
 - **Features**:
   - Priority-based ordering
@@ -180,7 +180,7 @@ Tenant isolation framework for multi-tenant event sourcing applications.
 ### Components
 
 #### TenantContext
-- **Location**: `com.firefly.common.eventsourcing.multitenancy.TenantContext`
+- **Location**: `org.fireflyframework.eventsourcing.multitenancy.TenantContext`
 - **Purpose**: Reactive context holder for tenant information
 
 ```java
@@ -193,7 +193,7 @@ String tenantId = TenantContext.getCurrentTenantId().block();
 ```
 
 #### MultiTenancyConfiguration
-- **Location**: `com.firefly.common.eventsourcing.multitenancy.MultiTenancyConfiguration`
+- **Location**: `org.fireflyframework.eventsourcing.multitenancy.MultiTenancyConfiguration`
 - **Purpose**: Auto-configuration for multi-tenancy
 - **Activation**: Set `firefly.eventsourcing.multitenancy.enabled=true`
 

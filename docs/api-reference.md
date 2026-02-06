@@ -8,7 +8,7 @@ Complete API documentation for the Firefly Event Sourcing Library.
 
 Interface for domain events in the event sourcing system.
 
-**Package**: `com.firefly.common.eventsourcing.domain`
+**Package**: `org.fireflyframework.eventsourcing.domain`
 
 ```java
 public interface Event {
@@ -70,7 +70,7 @@ public record AccountCreatedEvent(
 
 Main interface for event persistence and retrieval.
 
-**Package**: `com.firefly.common.eventsourcing.store`
+**Package**: `org.fireflyframework.eventsourcing.store`
 
 ```java
 public interface EventStore {
@@ -174,7 +174,7 @@ Streams events from a specific global sequence number.
 
 Base class for event-sourced aggregates.
 
-**Package**: `com.firefly.common.eventsourcing.aggregate`
+**Package**: `org.fireflyframework.eventsourcing.aggregate`
 
 ```java
 public abstract class AggregateRoot {
@@ -298,7 +298,7 @@ public class Account extends AggregateRoot {
 
 Wrapper for events with persistence metadata.
 
-**Package**: `com.firefly.common.eventsourcing.domain`
+**Package**: `org.fireflyframework.eventsourcing.domain`
 
 ```java
 @Data
@@ -353,7 +353,7 @@ public class EventEnvelope {
 
 Collection of events for an aggregate.
 
-**Package**: `com.firefly.common.eventsourcing.domain`
+**Package**: `org.fireflyframework.eventsourcing.domain`
 
 ```java
 @Data
@@ -399,7 +399,7 @@ public class EventStream {
 
 Main configuration properties class.
 
-**Package**: `com.firefly.common.eventsourcing.config`
+**Package**: `org.fireflyframework.eventsourcing.config`
 
 ```java
 @Data
@@ -425,7 +425,7 @@ public class EventSourcingProperties {
 
 Base exception for event store operations.
 
-**Package**: `com.firefly.common.eventsourcing.store`
+**Package**: `org.fireflyframework.eventsourcing.store`
 
 ```java
 public class EventStoreException extends RuntimeException {
@@ -460,7 +460,7 @@ public class ConcurrencyException extends EventStoreException {
 
 Exception thrown when event handler invocation fails.
 
-**Package**: `com.firefly.common.eventsourcing.aggregate`
+**Package**: `org.fireflyframework.eventsourcing.aggregate`
 
 ```java
 public class EventHandlerException extends RuntimeException {
@@ -475,7 +475,7 @@ public class EventHandlerException extends RuntimeException {
 
 Statistics about the event store.
 
-**Package**: `com.firefly.common.eventsourcing.store`
+**Package**: `org.fireflyframework.eventsourcing.store`
 
 ```java
 @Data
@@ -495,7 +495,7 @@ public class EventStoreStatistics {
 
 Publishes events to external message systems.
 
-**Package**: `com.firefly.common.eventsourcing.publisher`
+**Package**: `org.fireflyframework.eventsourcing.publisher`
 
 ```java
 @Component
@@ -519,7 +519,7 @@ public class EventSourcingPublisher {
 
 Interface for aggregate snapshots.
 
-**Package**: `com.firefly.common.eventsourcing.snapshot`
+**Package**: `org.fireflyframework.eventsourcing.snapshot`
 
 ```java
 public interface Snapshot {

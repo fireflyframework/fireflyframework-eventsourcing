@@ -10,7 +10,7 @@ Think of it like an **Account Ledger** - instead of just showing your current ba
 
 ## The Problem with Traditional CRUD 😰
 
-Let's say you're building a banking system with traditional CRUD:
+Let's say you're building a system with traditional CRUD:
 
 ```sql
 -- Traditional approach: Only current state
@@ -232,7 +232,7 @@ public class Account extends AggregateRoot {
 }
 ```
 
-**Why?** Banking business rules are complex. DDD helps us model the real world accurately.
+**Why?** Enterprise business rules are complex. DDD helps us model the real world accurately.
 
 #### **2. Reactive Programming with R2DBC**
 ```java
@@ -246,7 +246,7 @@ public Mono<EventStream> appendEvents(UUID aggregateId, List<Event> events) {
 }
 ```
 
-**Why?** Banking systems need high throughput and low latency. Reactive programming handles thousands of concurrent operations efficiently.
+**Why?** Mission-critical systems need high throughput and low latency. Reactive programming handles thousands of concurrent operations efficiently.
 
 #### **3. PostgreSQL with JSONB Optimization**
 ```sql
@@ -289,7 +289,7 @@ public class EventStoreMetrics {
 }
 ```
 
-**Why?** Production banking systems need observability. We built-in metrics, health checks, and monitoring.
+**Why?** Production systems need observability. We built-in metrics, health checks, and monitoring.
 
 ## 🗄️ **Database Tables in Event Sourcing: What Goes Where?**
 
@@ -586,7 +586,7 @@ public class AccountLedger extends AggregateRoot {
 
 > **📚 See the complete [Account Ledger Tutorial](./tutorial-account-ledger.md)** for the full implementation with all business rules, events, and patterns.
 
-**Benefits in banking:**
+**Benefits in enterprise systems:**
 - ✅ Complete transaction history for regulatory compliance
 - ✅ Fraud detection through pattern analysis
 - ✅ Time travel for dispute resolution

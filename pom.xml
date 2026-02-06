@@ -5,17 +5,17 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.firefly</groupId>
-        <artifactId>lib-parent-pom</artifactId>
+        <groupId>org.fireflyframework</groupId>
+        <artifactId>fireflyframework-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
         <relativePath/>
     </parent>
 
-    <artifactId>lib-common-eventsourcing</artifactId>
+    <artifactId>fireflyframework-eventsourcing</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>Firefly Common Event Sourcing Library</name>
+    <name>Firefly Framework - Common Event Sourcing Library</name>
     <description>A comprehensive Spring Boot library that provides Event Sourcing pattern implementation with reactive programming support, featuring event stores, aggregates, snapshots, and integration with EDA messaging.</description>
 
     <dependencies>
@@ -33,9 +33,9 @@
 
         <!-- Firefly Common R2DBC for reactive database access and utilities -->
         <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>lib-common-r2dbc</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-r2dbc</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Spring AOP -->
@@ -70,16 +70,16 @@
 
         <!-- Firefly Common EDA for messaging -->
         <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>lib-common-eda</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-eda</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Firefly Common Cache for snapshot caching -->
         <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>lib-common-cache</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-cache</artifactId>
+            <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
 

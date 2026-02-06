@@ -260,9 +260,9 @@ public class BankAccountService {
 ```java
 package com.example.banking.domain;
 
-import com.firefly.common.eventsourcing.aggregate.AggregateRoot;
-import com.firefly.common.eventsourcing.domain.AbstractDomainEvent;
-import com.firefly.common.eventsourcing.annotation.DomainEvent;
+import org.fireflyframework.eventsourcing.aggregate.AggregateRoot;
+import org.fireflyframework.eventsourcing.domain.AbstractDomainEvent;
+import org.fireflyframework.eventsourcing.annotation.DomainEvent;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -474,7 +474,7 @@ public class BankAccount extends AggregateRoot {
 package com.example.banking.service;
 
 import com.example.banking.domain.BankAccount;
-import com.firefly.common.eventsourcing.store.EventStore;
+import org.fireflyframework.eventsourcing.store.EventStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
