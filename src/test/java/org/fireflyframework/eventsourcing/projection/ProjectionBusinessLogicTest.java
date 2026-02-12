@@ -286,13 +286,13 @@ class ProjectionBusinessLogicTest {
                 .verifyComplete();
         
         // Then - Verify metrics are being tracked (values may vary)
-        double processedCount = meterRegistry.find("projection.events.processed")
+        double processedCount = meterRegistry.find("firefly.eventsourcing.projection.events.processed")
                 .tag("projection", "account-balance-projection")
                 .counter().count();
         assertThat(processedCount).isGreaterThan(0.0); // Some events processed
         System.out.println("Events processed: " + processedCount);
         
-        double currentPosition = meterRegistry.find("projection.position.current")
+        double currentPosition = meterRegistry.find("firefly.eventsourcing.projection.position.current")
                 .tag("projection", "account-balance-projection")
                 .gauge().value();
         assertThat(currentPosition).isGreaterThanOrEqualTo(0.0); // Position tracked
@@ -361,7 +361,7 @@ class ProjectionBusinessLogicTest {
                 .verifyError();
         
         // Metrics should reflect the reset
-        assertThat(meterRegistry.find("projection.resets")
+        assertThat(meterRegistry.find("firefly.eventsourcing.projection.resets")
                 .tag("projection", "account-balance-projection")
                 .counter().count()).isGreaterThan(0.0);
     }
