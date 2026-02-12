@@ -17,20 +17,29 @@
 package org.fireflyframework.eventsourcing.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.fireflyframework.eda.publisher.EventPublisherFactory;
+import org.fireflyframework.eventsourcing.monitoring.EventStoreMetrics;
+import org.fireflyframework.eventsourcing.outbox.EventOutboxProcessor;
+import org.fireflyframework.eventsourcing.outbox.EventOutboxRepository;
+import org.fireflyframework.eventsourcing.outbox.EventOutboxService;
 import org.fireflyframework.eventsourcing.publisher.EventSourcingPublisher;
+import org.fireflyframework.eventsourcing.transaction.EventSourcingTransactionalAspect;
+import org.fireflyframework.eventsourcing.upcasting.EventUpcaster;
+import org.fireflyframework.eventsourcing.upcasting.EventUpcastingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
-import org.springframework.context.annotation.Import;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.transaction.ReactiveTransactionManager;
+
+import java.util.List;
 
 /**
  * Auto-configuration for the Event Sourcing library.
@@ -59,23 +68,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @AutoConfiguration
 @ConditionalOnProperty(prefix = "firefly.eventsourcing", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(EventSourcingProperties.class)
-@ComponentScan(
-        basePackages = "org.fireflyframework.eventsourcing",
-        excludeFilters = @ComponentScan.Filter(
-                type = FilterType.REGEX,
-                pattern = "com\\.firefly\\.common\\.eventsourcing\\.examples\\..*"
-        )
-)
 @EnableAsync
 @EnableScheduling
-@Import({
-    EventStoreAutoConfiguration.class,
-    SnapshotAutoConfiguration.class,
-    EventSourcingHealthConfiguration.class,
-    EventSourcingMetricsConfiguration.class,
-    org.fireflyframework.core.config.R2dbcConfig.class,
-    org.fireflyframework.core.config.R2dbcTransactionConfig.class
-})
 @Slf4j
 public class EventSourcingAutoConfiguration {
 
@@ -110,5 +104,77 @@ public class EventSourcingAutoConfiguration {
         mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
         mapper.findAndRegisterModules();
         return mapper;
+    }
+
+    /**
+     * Creates the EventStoreMetrics bean for monitoring event store operations.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public EventStoreMetrics eventStoreMetrics(MeterRegistry meterRegistry) {
+        log.debug("Creating EventStoreMetrics bean");
+        return new EventStoreMetrics(meterRegistry);
+    }
+
+    /**
+     * Creates the EventTypeRegistry bean for automatic event type discovery and registration.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public EventTypeRegistry eventTypeRegistry(ApplicationContext applicationContext, ObjectMapper objectMapper) {
+        log.debug("Creating EventTypeRegistry bean");
+        return new EventTypeRegistry(applicationContext, objectMapper);
+    }
+
+    /**
+     * Creates the EventSourcingTransactionalAspect bean for transactional event sourcing operations.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(ReactiveTransactionManager.class)
+    public EventSourcingTransactionalAspect eventSourcingTransactionalAspect(
+            ReactiveTransactionManager transactionManager,
+            EventSourcingPublisher eventPublisher) {
+        log.debug("Creating EventSourcingTransactionalAspect bean");
+        return new EventSourcingTransactionalAspect(transactionManager, eventPublisher);
+    }
+
+    /**
+     * Creates the EventUpcastingService bean for managing event upcasting.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public EventUpcastingService eventUpcastingService(List<EventUpcaster> upcasters) {
+        log.debug("Creating EventUpcastingService bean");
+        return new EventUpcastingService(upcasters);
+    }
+
+    /**
+     * Creates the EventOutboxService bean for managing Event Outbox operations.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public EventOutboxService eventOutboxService(
+            EventOutboxRepository outboxRepository,
+            EventSourcingPublisher eventPublisher,
+            ObjectMapper objectMapper) {
+        log.debug("Creating EventOutboxService bean");
+        return new EventOutboxService(outboxRepository, eventPublisher, objectMapper);
+    }
+
+    /**
+     * Creates the EventOutboxProcessor bean for background processing of outbox entries.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(
+            prefix = "eventsourcing.outbox.processor",
+            name = "enabled",
+            havingValue = "true",
+            matchIfMissing = false
+    )
+    public EventOutboxProcessor eventOutboxProcessor(EventOutboxService outboxService) {
+        log.debug("Creating EventOutboxProcessor bean");
+        return new EventOutboxProcessor(outboxService);
     }
 }

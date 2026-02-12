@@ -19,9 +19,7 @@ package org.fireflyframework.eventsourcing.outbox;
 import org.fireflyframework.eventsourcing.logging.EventSourcingLoggingContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 
 /**
  * Background processor for Event Outbox entries.
@@ -50,13 +48,6 @@ import org.springframework.stereotype.Component;
  * - Quartz for more advanced scheduling
  * - Dedicated outbox processor service
  */
-@Component
-@ConditionalOnProperty(
-        prefix = "eventsourcing.outbox.processor",
-        name = "enabled",
-        havingValue = "true",
-        matchIfMissing = false
-)
 @RequiredArgsConstructor
 @Slf4j
 public class EventOutboxProcessor {

@@ -27,9 +27,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.ReactiveTransactionManager;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
@@ -141,8 +139,6 @@ import java.util.List;
  * @see org.springframework.transaction.ReactiveTransactionManager
  */
 @Aspect
-@Component
-@ConditionalOnBean(ReactiveTransactionManager.class)
 public class EventSourcingTransactionalAspect {
 
     private static final Logger log = LoggerFactory.getLogger(EventSourcingTransactionalAspect.class);
