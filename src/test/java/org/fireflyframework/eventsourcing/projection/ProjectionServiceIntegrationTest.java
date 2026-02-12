@@ -236,12 +236,12 @@ class ProjectionServiceIntegrationTest {
                 .verifyComplete();
         
         // Then - verify metrics were recorded
-        assertThat(meterRegistry.find("projection.events.processed")
+        assertThat(meterRegistry.find("firefly.eventsourcing.projection.events.processed")
                 .tag("projection", "account-balance-projection")
                 .counter())
                 .isNotNull();
         
-        assertThat(meterRegistry.find("projection.position.current")
+        assertThat(meterRegistry.find("firefly.eventsourcing.projection.position.current")
                 .tag("projection", "account-balance-projection")
                 .gauge())
                 .isNotNull();

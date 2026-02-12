@@ -51,13 +51,16 @@ class ProjectionFrameworkTest {
         assertThat(metrics.getCurrentPosition()).isEqualTo(0L);
         assertThat(metrics.getLagAmount()).isEqualTo(0L);
         
+        // Trigger counter creation by recording an event
+        metrics.recordEventProcessed();
+
         // Verify metrics are registered
-        assertThat(meterRegistry.find("projection.events.processed")
+        assertThat(meterRegistry.find("firefly.eventsourcing.projection.events.processed")
                 .tag("projection", projectionName)
                 .counter())
                 .isNotNull();
                 
-        assertThat(meterRegistry.find("projection.position.current")
+        assertThat(meterRegistry.find("firefly.eventsourcing.projection.position.current")
                 .tag("projection", projectionName)
                 .gauge())
                 .isNotNull();
@@ -75,10 +78,10 @@ class ProjectionFrameworkTest {
         metrics.updatePosition(50L, 100L);
         
         // Then
-        assertThat(meterRegistry.find("projection.events.processed")
+        assertThat(meterRegistry.find("firefly.eventsourcing.projection.events.processed")
                 .counter().count()).isEqualTo(2.0);
                 
-        assertThat(meterRegistry.find("projection.events.failed")
+        assertThat(meterRegistry.find("firefly.eventsourcing.projection.events.failed")
                 .counter().count()).isEqualTo(1.0);
                 
         assertThat(metrics.getCurrentPosition()).isEqualTo(50L);
