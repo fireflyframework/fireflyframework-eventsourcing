@@ -321,8 +321,14 @@ public class EventSourcingLoggingContext {
     /**
      * Wraps a Mono with MDC context propagation.
      * <p>
-     * This method ensures that MDC context is properly propagated through
-     * reactive chains, which is essential for distributed tracing.
+     * With {@code Hooks.enableAutomaticContextPropagation()} enabled by the observability
+     * module, MDC is automatically bridged between ThreadLocal and Reactor Context.
+     * This method captures the current MDC and writes it to the Reactor Context so that
+     * downstream operators can access it across thread boundaries.
+     * <p>
+     * <b>Note:</b> The previous implementation used {@code doOnEach/MDC.setContextMap()}
+     * which was expensive per-signal and racy. The automatic context propagation mechanism
+     * now handles MDC restoration transparently.
      *
      * @param mono the Mono to wrap
      * @param <T> the type of the Mono
@@ -334,21 +340,20 @@ public class EventSourcingLoggingContext {
             return mono;
         }
 
-        return mono.contextWrite(Context.of("mdc", contextMap))
-                .doOnEach(signal -> {
-                    if (signal.hasValue() || signal.hasError()) {
-                        if (signal.getContextView().hasKey("mdc")) {
-                            @SuppressWarnings("unchecked")
-                            Map<String, String> mdc = signal.getContextView().get("mdc");
-                            MDC.setContextMap(mdc);
-                        }
-                    }
-                })
-                .doFinally(signalType -> MDC.clear());
+        return mono.contextWrite(ctx -> {
+            Context updated = ctx;
+            for (Map.Entry<String, String> entry : contextMap.entrySet()) {
+                updated = updated.put(entry.getKey(), entry.getValue());
+            }
+            return updated;
+        });
     }
 
     /**
      * Creates a function that wraps a Mono with MDC context propagation.
+     * <p>
+     * With {@code Hooks.enableAutomaticContextPropagation()} enabled by the observability
+     * module, this simply writes the current MDC values to the Reactor Context.
      *
      * @param <T> the input type
      * @param <R> the result type
@@ -360,17 +365,13 @@ public class EventSourcingLoggingContext {
             return mono -> mono;
         }
 
-        return mono -> mono.contextWrite(Context.of("mdc", contextMap))
-                .doOnEach(signal -> {
-                    if (signal.hasValue() || signal.hasError()) {
-                        if (signal.getContextView().hasKey("mdc")) {
-                            @SuppressWarnings("unchecked")
-                            Map<String, String> mdc = signal.getContextView().get("mdc");
-                            MDC.setContextMap(mdc);
-                        }
-                    }
-                })
-                .doFinally(signalType -> MDC.clear());
+        return mono -> mono.contextWrite(ctx -> {
+            Context updated = ctx;
+            for (Map.Entry<String, String> entry : contextMap.entrySet()) {
+                updated = updated.put(entry.getKey(), entry.getValue());
+            }
+            return updated;
+        });
     }
 }
 
