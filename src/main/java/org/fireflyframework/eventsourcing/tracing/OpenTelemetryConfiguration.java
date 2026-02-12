@@ -16,31 +16,11 @@
 
 package org.fireflyframework.eventsourcing.tracing;
 
-import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.trace.Tracer;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
 /**
- * Configuration for OpenTelemetry distributed tracing.
- * Provides instrumentation for event sourcing operations.
+ * @deprecated Tracing is now provided by {@code fireflyframework-observability} via
+ * Micrometer Observation API with OpenTelemetry bridge. This class is intentionally
+ * empty and will be removed in a future release.
  */
-@Configuration
-@ConditionalOnClass(OpenTelemetry.class)
-@ConditionalOnProperty(prefix = "firefly.eventsourcing.tracing", name = "enabled", havingValue = "true", matchIfMissing = false)
-@Slf4j
+@Deprecated(since = "26.02.04", forRemoval = true)
 public class OpenTelemetryConfiguration {
-
-    /**
-     * Creates a tracer for event sourcing operations.
-     */
-    @Bean
-    public Tracer eventSourcingTracer(OpenTelemetry openTelemetry) {
-        log.info("Initializing OpenTelemetry Tracer for Event Sourcing");
-        return openTelemetry.getTracer("org.fireflyframework.eventsourcing", "1.0.0");
-    }
 }
-
