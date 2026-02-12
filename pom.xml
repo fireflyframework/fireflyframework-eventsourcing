@@ -7,12 +7,12 @@
     <parent>
         <groupId>org.fireflyframework</groupId>
         <artifactId>fireflyframework-parent</artifactId>
-        <version>26.02.01</version>
+        <version>26.02.02</version>
         <relativePath/>
     </parent>
 
     <artifactId>fireflyframework-eventsourcing</artifactId>
-    <version>26.02.01</version>
+    <version>26.02.02</version>
     <packaging>jar</packaging>
 
     <name>Firefly Framework - Common Event Sourcing Library</name>
@@ -94,7 +94,6 @@
         <dependency>
             <groupId>dev.miku</groupId>
             <artifactId>r2dbc-mysql</artifactId>
-            <version>0.8.2.RELEASE</version>
             <optional>true</optional>
         </dependency>
 
@@ -115,23 +114,20 @@
             <artifactId>micrometer-tracing-bridge-brave</artifactId>
         </dependency>
 
-        <!-- OpenTelemetry for distributed tracing -->
+        <!-- OpenTelemetry for distributed tracing (versions managed by parent via BOM) -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-api</artifactId>
-            <version>1.59.0</version>
             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk</artifactId>
-            <version>1.59.0</version>
             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-otlp</artifactId>
-            <version>1.59.0</version>
             <optional>true</optional>
         </dependency>
 
@@ -170,7 +166,6 @@
         <dependency>
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
-            <version>7.4</version>
         </dependency>
 
         <!-- Testing -->
