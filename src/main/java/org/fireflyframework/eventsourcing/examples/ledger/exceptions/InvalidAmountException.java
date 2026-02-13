@@ -16,10 +16,12 @@
 
 package org.fireflyframework.eventsourcing.examples.ledger.exceptions;
 
+import org.fireflyframework.kernel.exception.FireflyException;
+
 /**
  * Exception thrown when an invalid amount is provided (e.g., negative or zero).
  */
-public class InvalidAmountException extends RuntimeException {
+public class InvalidAmountException extends FireflyException {
     
     public InvalidAmountException(String message) {
         super(message);

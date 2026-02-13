@@ -16,6 +16,8 @@
 
 package org.fireflyframework.eventsourcing.store;
 
+import org.fireflyframework.kernel.exception.FireflyInfrastructureException;
+
 /**
  * Base exception for event store operations.
  * <p>
@@ -26,7 +28,7 @@ package org.fireflyframework.eventsourcing.store;
  * - Storage capacity issues
  * - Configuration problems
  */
-public class EventStoreException extends RuntimeException {
+public class EventStoreException extends FireflyInfrastructureException {
 
     public EventStoreException(String message) {
         super(message);
@@ -37,6 +39,6 @@ public class EventStoreException extends RuntimeException {
     }
 
     public EventStoreException(Throwable cause) {
-        super(cause);
+        super(cause.getMessage(), cause);
     }
 }

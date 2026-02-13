@@ -16,6 +16,8 @@
 
 package org.fireflyframework.eventsourcing.aggregate;
 
+import org.fireflyframework.kernel.exception.FireflyException;
+
 /**
  * Exception thrown when there's an issue with event handler methods in aggregates.
  * <p>
@@ -25,7 +27,7 @@ package org.fireflyframework.eventsourcing.aggregate;
  * - Event handler method has invalid signature
  * - Reflection issues when accessing event handlers
  */
-public class EventHandlerException extends RuntimeException {
+public class EventHandlerException extends FireflyException {
 
     public EventHandlerException(String message) {
         super(message);

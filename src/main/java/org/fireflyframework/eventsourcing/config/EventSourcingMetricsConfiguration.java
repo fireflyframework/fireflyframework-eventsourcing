@@ -16,16 +16,26 @@
 
 package org.fireflyframework.eventsourcing.config;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.fireflyframework.eventsourcing.monitoring.EventStoreMetrics;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * Auto-configuration for event sourcing metrics collection.
  * <p>
- * This configuration sets up Micrometer metrics for event sourcing
- * operations like event appends, reads, snapshot operations, etc.
+ * Wires {@link EventStoreMetrics} to the Micrometer {@link MeterRegistry} when
+ * Micrometer is on the classpath and metrics are enabled.
+ *
+ * <p>Note: The {@link EventStoreMetrics} bean is also defined in
+ * {@link EventSourcingAutoConfiguration}. This configuration class ensures
+ * the metrics bean is available even when loaded through component scanning
+ * independently of the main auto-configuration.</p>
  */
 @Configuration
 @ConditionalOnClass(name = "io.micrometer.core.instrument.MeterRegistry")
@@ -37,7 +47,11 @@ public class EventSourcingMetricsConfiguration {
         log.debug("Event Sourcing Metrics Configuration initialized");
     }
 
-    // TODO: Add metrics bean configurations
-    // @Bean
-    // public EventStoreMetrics eventStoreMetrics(MeterRegistry meterRegistry) { ... }
+    @Bean
+    @ConditionalOnBean(MeterRegistry.class)
+    @ConditionalOnMissingBean
+    public EventStoreMetrics eventStoreMetrics(MeterRegistry meterRegistry) {
+        log.info("Creating EventStoreMetrics bean via metrics configuration");
+        return new EventStoreMetrics(meterRegistry);
+    }
 }

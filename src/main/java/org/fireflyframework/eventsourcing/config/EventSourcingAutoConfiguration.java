@@ -168,7 +168,7 @@ public class EventSourcingAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(
-            prefix = "eventsourcing.outbox.processor",
+            prefix = "firefly.eventsourcing.outbox.processor",
             name = "enabled",
             havingValue = "true",
             matchIfMissing = false

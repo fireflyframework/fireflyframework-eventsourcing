@@ -19,6 +19,13 @@
     <description>A comprehensive Spring Boot library that provides Event Sourcing pattern implementation with reactive programming support, featuring event stores, aggregates, snapshots, and integration with EDA messaging.</description>
 
     <dependencies>
+        <!-- Firefly Kernel (exception hierarchy, shared abstractions) -->
+        <dependency>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-kernel</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Spring Boot WebFlux for reactive programming -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -16,6 +16,8 @@
 
 package org.fireflyframework.eventsourcing.snapshot;
 
+import org.fireflyframework.kernel.exception.FireflyInfrastructureException;
+
 /**
  * Exception thrown when snapshot operations fail.
  * <p>
@@ -26,7 +28,7 @@ package org.fireflyframework.eventsourcing.snapshot;
  * - Invalid snapshot data
  * - Configuration issues
  */
-public class SnapshotException extends RuntimeException {
+public class SnapshotException extends FireflyInfrastructureException {
 
     public SnapshotException(String message) {
         super(message);

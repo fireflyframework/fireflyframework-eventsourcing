@@ -348,9 +348,31 @@ public class R2dbcEventStore implements EventStore {
 
     @Override
     public Flux<EventEnvelope> streamEventsByMetadata(Map<String, Object> metadataCriteria) {
-        // This is a simplified implementation - in practice, you'd want more sophisticated JSON querying
-        log.warn("streamEventsByMetadata is not fully implemented in this version");
-        return Flux.empty();
+        if (metadataCriteria == null || metadataCriteria.isEmpty()) {
+            return streamAllEvents();
+        }
+
+        // Build a JSONB containment query: metadata @> '{"key":"value"}'::jsonb
+        // This uses PostgreSQL's JSONB containment operator for efficient indexed lookups.
+        String criteriaJson;
+        try {
+            criteriaJson = objectMapper.writeValueAsString(metadataCriteria);
+        } catch (JsonProcessingException e) {
+            return Flux.error(new EventStoreException("Failed to serialize metadata criteria", e));
+        }
+
+        String sql = """
+                SELECT event_id, aggregate_id, aggregate_type, aggregate_version, global_sequence,
+                       event_type, event_data, metadata, created_at
+                FROM events
+                WHERE metadata::jsonb @> :criteriaJson::jsonb
+                ORDER BY global_sequence ASC
+                """;
+
+        return databaseClient.sql(sql)
+                .bind("criteriaJson", criteriaJson)
+                .map((row, metadata) -> mapToEventEnvelope(row, metadata))
+                .all();
     }
 
     @Override

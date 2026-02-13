@@ -112,9 +112,13 @@ public class EventSourcingPublisher {
         log.info("Publishing batch of {} events", envelopes.size());
 
         return Flux.fromIterable(envelopes)
-                .flatMap(this::publishEvent)
-                .onErrorContinue((error, envelope) ->
-                    log.error("Failed to publish event in batch: {}", envelope, error))
+                .flatMap(envelope -> publishEvent(envelope)
+                        .onErrorResume(error -> {
+                            log.error("Failed to publish event in batch: eventId={}, aggregateId={}, eventType={}: {}",
+                                    envelope.getEventId(), envelope.getAggregateId(),
+                                    envelope.getEventType(), error.getMessage(), error);
+                            return Mono.empty();
+                        }))
                 .then()
                 .doOnSuccess(v -> {
                     long duration = System.currentTimeMillis() - startTime;

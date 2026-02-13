@@ -16,10 +16,12 @@
 
 package org.fireflyframework.eventsourcing.examples.ledger.exceptions;
 
+import org.fireflyframework.kernel.exception.FireflyException;
+
 /**
  * Exception thrown when attempting to withdraw from a frozen account.
  */
-public class AccountFrozenException extends RuntimeException {
+public class AccountFrozenException extends FireflyException {
     
     public AccountFrozenException(String message) {
         super(message);
