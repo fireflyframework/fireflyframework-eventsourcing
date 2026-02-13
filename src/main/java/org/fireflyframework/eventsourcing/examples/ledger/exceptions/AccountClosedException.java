@@ -16,10 +16,12 @@
 
 package org.fireflyframework.eventsourcing.examples.ledger.exceptions;
 
+import org.fireflyframework.kernel.exception.FireflyException;
+
 /**
  * Exception thrown when attempting to perform operations on a closed account.
  */
-public class AccountClosedException extends RuntimeException {
+public class AccountClosedException extends FireflyException {
     
     public AccountClosedException(String message) {
         super(message);

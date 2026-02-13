@@ -16,15 +16,22 @@
 
 package org.fireflyframework.eventsourcing.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.fireflyframework.eventsourcing.snapshot.SnapshotStore;
+import org.fireflyframework.eventsourcing.snapshot.SnapshotTrigger;
+import org.fireflyframework.eventsourcing.snapshot.r2dbc.R2dbcSnapshotStore;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.r2dbc.core.DatabaseClient;
 
 /**
  * Auto-configuration for snapshot stores.
  * <p>
- * This configuration class sets up snapshot store implementations and
- * related components like caching and cleanup schedulers.
+ * This configuration class sets up the R2DBC-backed snapshot store and a
+ * configurable snapshot trigger that creates snapshots after every N events.
  */
 @Configuration
 @ConditionalOnProperty(prefix = "firefly.eventsourcing.snapshot", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -35,8 +42,18 @@ public class SnapshotAutoConfiguration {
         log.debug("Snapshot Auto-Configuration initialized");
     }
 
-    // TODO: Add snapshot store bean configurations
-    // @Bean
-    // @ConditionalOnMissingBean
-    // public SnapshotStore snapshotStore(...) { ... }
+    @Bean
+    @ConditionalOnMissingBean
+    public SnapshotStore snapshotStore(DatabaseClient databaseClient, ObjectMapper objectMapper) {
+        log.info("Creating R2dbcSnapshotStore bean");
+        return new R2dbcSnapshotStore(databaseClient, objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public SnapshotTrigger snapshotTrigger(SnapshotStore snapshotStore, EventSourcingProperties properties) {
+        int frequency = properties.getSnapshot().getThreshold();
+        log.info("Creating SnapshotTrigger bean with frequency: {} events", frequency);
+        return new SnapshotTrigger(snapshotStore, frequency);
+    }
 }

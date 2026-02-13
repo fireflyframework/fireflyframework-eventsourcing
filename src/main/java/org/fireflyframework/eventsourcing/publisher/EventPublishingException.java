@@ -16,6 +16,8 @@
 
 package org.fireflyframework.eventsourcing.publisher;
 
+import org.fireflyframework.kernel.exception.FireflyInfrastructureException;
+
 /**
  * Exception thrown when event publishing fails.
  * <p>
@@ -25,7 +27,7 @@ package org.fireflyframework.eventsourcing.publisher;
  * - Messaging infrastructure is unavailable
  * - Publisher configuration is invalid
  */
-public class EventPublishingException extends RuntimeException {
+public class EventPublishingException extends FireflyInfrastructureException {
 
     public EventPublishingException(String message) {
         super(message);

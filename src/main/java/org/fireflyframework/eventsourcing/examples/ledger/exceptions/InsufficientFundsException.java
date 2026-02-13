@@ -16,10 +16,12 @@
 
 package org.fireflyframework.eventsourcing.examples.ledger.exceptions;
 
+import org.fireflyframework.kernel.exception.FireflyException;
+
 /**
  * Exception thrown when attempting to withdraw more than the available balance.
  */
-public class InsufficientFundsException extends RuntimeException {
+public class InsufficientFundsException extends FireflyException {
     
     public InsufficientFundsException(String message) {
         super(message);
