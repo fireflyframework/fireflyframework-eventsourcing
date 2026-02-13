@@ -18,7 +18,6 @@ package org.fireflyframework.eventsourcing.upcasting;
 
 import org.fireflyframework.eventsourcing.domain.Event;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
 import java.util.List;
@@ -28,7 +27,6 @@ import java.util.Optional;
  * Service for managing event upcasting.
  * Automatically applies registered upcasters to events when loading from the event store.
  */
-@Service
 @Slf4j
 public class EventUpcastingService {
 

@@ -26,7 +26,6 @@ import org.fireflyframework.eventsourcing.store.r2dbc.EventOutboxEntity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
-import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -53,7 +52,6 @@ import java.util.UUID;
  * 3. Retries failed publications with exponential backoff
  * 4. Marks entries as completed after successful publication
  */
-@Service
 @RequiredArgsConstructor
 @Slf4j
 public class EventOutboxService {

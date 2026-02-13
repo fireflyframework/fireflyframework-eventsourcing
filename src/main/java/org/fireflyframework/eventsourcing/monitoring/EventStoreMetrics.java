@@ -21,8 +21,6 @@ import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.fireflyframework.observability.metrics.FireflyMetricsSupport;
 import org.springframework.boot.actuate.health.Health;
-import org.springframework.stereotype.Component;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
@@ -42,7 +40,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * - firefly.eventsourcing.connection.pool.active (Gauge)
  * - firefly.eventsourcing.batch.size (DistributionSummary)
  */
-@Component
 @Slf4j
 public class EventStoreMetrics extends FireflyMetricsSupport {
 
