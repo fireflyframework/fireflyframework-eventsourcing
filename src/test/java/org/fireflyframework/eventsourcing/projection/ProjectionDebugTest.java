@@ -4,7 +4,7 @@
 
 package org.fireflyframework.eventsourcing.projection;
 
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.examples.AccountBalanceProjectionService;
 import org.fireflyframework.eventsourcing.store.EventStore;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -92,7 +92,7 @@ class ProjectionDebugTest {
     @Test
     void debugStepByStepBalanceCalculation() {
         // Step 1: Create account
-        EventEnvelope accountCreated = createAccountCreatedEvent(testAccountId, "USD", 1L);
+        StoredEventEnvelope accountCreated = createAccountCreatedEvent(testAccountId, "USD", 1L);
         StepVerifier.create(projectionService.handleEvent(accountCreated))
                 .verifyComplete();
         
@@ -104,7 +104,7 @@ class ProjectionDebugTest {
                 .verifyComplete();
         
         // Step 2: Deposit 100
-        EventEnvelope deposit1 = createMoneyDepositedEvent(testAccountId, new BigDecimal("100.00"), 2L);
+        StoredEventEnvelope deposit1 = createMoneyDepositedEvent(testAccountId, new BigDecimal("100.00"), 2L);
         StepVerifier.create(projectionService.handleEvent(deposit1))
                 .verifyComplete();
                 
@@ -116,7 +116,7 @@ class ProjectionDebugTest {
                 .verifyComplete();
         
         // Step 3: Withdraw 30
-        EventEnvelope withdrawal1 = createMoneyWithdrawnEvent(testAccountId, new BigDecimal("30.00"), 3L);
+        StoredEventEnvelope withdrawal1 = createMoneyWithdrawnEvent(testAccountId, new BigDecimal("30.00"), 3L);
         StepVerifier.create(projectionService.handleEvent(withdrawal1))
                 .verifyComplete();
                 
@@ -128,7 +128,7 @@ class ProjectionDebugTest {
                 .verifyComplete();
         
         // Step 4: Deposit 50
-        EventEnvelope deposit2 = createMoneyDepositedEvent(testAccountId, new BigDecimal("50.00"), 4L);
+        StoredEventEnvelope deposit2 = createMoneyDepositedEvent(testAccountId, new BigDecimal("50.00"), 4L);
         StepVerifier.create(projectionService.handleEvent(deposit2))
                 .verifyComplete();
                 
@@ -140,7 +140,7 @@ class ProjectionDebugTest {
                 .verifyComplete();
         
         // Step 5: Withdraw 20
-        EventEnvelope withdrawal2 = createMoneyWithdrawnEvent(testAccountId, new BigDecimal("20.00"), 5L);
+        StoredEventEnvelope withdrawal2 = createMoneyWithdrawnEvent(testAccountId, new BigDecimal("20.00"), 5L);
         StepVerifier.create(projectionService.handleEvent(withdrawal2))
                 .verifyComplete();
                 
@@ -152,8 +152,8 @@ class ProjectionDebugTest {
                 .verifyComplete();
     }
     
-    private EventEnvelope createAccountCreatedEvent(UUID accountId, String currency, long globalSequence) {
-        return EventEnvelope.builder()
+    private StoredEventEnvelope createAccountCreatedEvent(UUID accountId, String currency, long globalSequence) {
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(new AccountBalanceProjectionService.AccountCreatedEvent(accountId, currency))
                 .aggregateId(accountId)
@@ -165,8 +165,8 @@ class ProjectionDebugTest {
                 .build();
     }
     
-    private EventEnvelope createMoneyDepositedEvent(UUID accountId, BigDecimal amount, long globalSequence) {
-        return EventEnvelope.builder()
+    private StoredEventEnvelope createMoneyDepositedEvent(UUID accountId, BigDecimal amount, long globalSequence) {
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(new AccountBalanceProjectionService.MoneyDepositedEvent(accountId, amount))
                 .aggregateId(accountId)
@@ -178,8 +178,8 @@ class ProjectionDebugTest {
                 .build();
     }
     
-    private EventEnvelope createMoneyWithdrawnEvent(UUID accountId, BigDecimal amount, long globalSequence) {
-        return EventEnvelope.builder()
+    private StoredEventEnvelope createMoneyWithdrawnEvent(UUID accountId, BigDecimal amount, long globalSequence) {
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(new AccountBalanceProjectionService.MoneyWithdrawnEvent(accountId, amount))
                 .aggregateId(accountId)

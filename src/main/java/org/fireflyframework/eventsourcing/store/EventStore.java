@@ -17,7 +17,7 @@
 package org.fireflyframework.eventsourcing.store;
 
 import org.fireflyframework.eventsourcing.domain.Event;
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.domain.EventStream;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -143,7 +143,7 @@ public interface EventStore {
      *
      * @return a Flux of event envelopes in global sequence order
      */
-    Flux<EventEnvelope> streamAllEvents();
+    Flux<StoredEventEnvelope> streamAllEvents();
 
     /**
      * Streams events from a specific global sequence number.
@@ -152,7 +152,7 @@ public interface EventStore {
      * @param fromSequence the global sequence number to start from (inclusive)
      * @return a Flux of event envelopes from the specified sequence
      */
-    Flux<EventEnvelope> streamAllEvents(long fromSequence);
+    Flux<StoredEventEnvelope> streamAllEvents(long fromSequence);
 
     /**
      * Streams events of specific types.
@@ -161,7 +161,7 @@ public interface EventStore {
      * @param eventTypes the event types to include
      * @return a Flux of event envelopes matching the specified types
      */
-    Flux<EventEnvelope> streamEventsByType(List<String> eventTypes);
+    Flux<StoredEventEnvelope> streamEventsByType(List<String> eventTypes);
 
     /**
      * Streams events for specific aggregate types.
@@ -169,7 +169,7 @@ public interface EventStore {
      * @param aggregateTypes the aggregate types to include
      * @return a Flux of event envelopes for the specified aggregate types
      */
-    Flux<EventEnvelope> streamEventsByAggregateType(List<String> aggregateTypes);
+    Flux<StoredEventEnvelope> streamEventsByAggregateType(List<String> aggregateTypes);
 
     /**
      * Streams events within a time range.
@@ -178,7 +178,7 @@ public interface EventStore {
      * @param to the end time (inclusive)
      * @return a Flux of event envelopes within the time range
      */
-    Flux<EventEnvelope> streamEventsByTimeRange(Instant from, Instant to);
+    Flux<StoredEventEnvelope> streamEventsByTimeRange(Instant from, Instant to);
 
     /**
      * Streams events with specific metadata criteria.
@@ -186,7 +186,7 @@ public interface EventStore {
      * @param metadataCriteria the metadata key-value pairs to match
      * @return a Flux of event envelopes matching the metadata criteria
      */
-    Flux<EventEnvelope> streamEventsByMetadata(Map<String, Object> metadataCriteria);
+    Flux<StoredEventEnvelope> streamEventsByMetadata(Map<String, Object> metadataCriteria);
 
     /**
      * Gets the current global sequence number.

@@ -18,6 +18,7 @@ package org.fireflyframework.eventsourcing.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
 
@@ -26,6 +27,7 @@ import java.time.Duration;
  * Allows customization of projection behavior, health checks, and monitoring.
  */
 @Data
+@Validated
 @ConfigurationProperties(prefix = "firefly.eventsourcing.projection")
 public class EventSourcingProjectionProperties {
     

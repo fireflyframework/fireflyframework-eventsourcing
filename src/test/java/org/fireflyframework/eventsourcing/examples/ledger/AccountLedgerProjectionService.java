@@ -16,7 +16,7 @@
 
 package org.fireflyframework.eventsourcing.examples.ledger;
 
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.examples.ledger.events.*;
 import org.fireflyframework.eventsourcing.projection.ProjectionService;
 import org.fireflyframework.eventsourcing.store.EventStore;
@@ -64,7 +64,7 @@ public class AccountLedgerProjectionService extends ProjectionService<AccountLed
     }
 
     @Override
-    public Mono<Void> handleEvent(EventEnvelope envelope) {
+    public Mono<Void> handleEvent(StoredEventEnvelope envelope) {
         return Mono.defer(() -> {
             if (envelope.getEvent() instanceof AccountOpenedEvent event) {
                 return handleAccountOpened(event, envelope);
@@ -123,7 +123,7 @@ public class AccountLedgerProjectionService extends ProjectionService<AccountLed
         return eventStore.getCurrentGlobalSequence();
     }
     
-    private Mono<Void> handleAccountOpened(AccountOpenedEvent event, EventEnvelope envelope) {
+    private Mono<Void> handleAccountOpened(AccountOpenedEvent event, StoredEventEnvelope envelope) {
         log.debug("Handling AccountOpenedEvent: accountId={}, accountNumber={}",
                 event.getAggregateId(), event.getAccountNumber());
 
@@ -149,7 +149,7 @@ public class AccountLedgerProjectionService extends ProjectionService<AccountLed
                 .then();
     }
     
-    private Mono<Void> handleMoneyDeposited(MoneyDepositedEvent event, EventEnvelope envelope) {
+    private Mono<Void> handleMoneyDeposited(MoneyDepositedEvent event, StoredEventEnvelope envelope) {
         log.debug("Handling MoneyDepositedEvent: accountId={}, amount={}",
                 event.getAggregateId(), event.getAmount());
 
@@ -167,7 +167,7 @@ public class AccountLedgerProjectionService extends ProjectionService<AccountLed
                 .then();
     }
 
-    private Mono<Void> handleMoneyWithdrawn(MoneyWithdrawnEvent event, EventEnvelope envelope) {
+    private Mono<Void> handleMoneyWithdrawn(MoneyWithdrawnEvent event, StoredEventEnvelope envelope) {
         log.debug("Handling MoneyWithdrawnEvent: accountId={}, amount={}",
                 event.getAggregateId(), event.getAmount());
 
@@ -185,7 +185,7 @@ public class AccountLedgerProjectionService extends ProjectionService<AccountLed
                 .then();
     }
 
-    private Mono<Void> handleAccountFrozen(AccountFrozenEvent event, EventEnvelope envelope) {
+    private Mono<Void> handleAccountFrozen(AccountFrozenEvent event, StoredEventEnvelope envelope) {
         log.debug("Handling AccountFrozenEvent: accountId={}, reason={}",
                 event.getAggregateId(), event.getReason());
 
@@ -202,7 +202,7 @@ public class AccountLedgerProjectionService extends ProjectionService<AccountLed
                 .then();
     }
 
-    private Mono<Void> handleAccountUnfrozen(AccountUnfrozenEvent event, EventEnvelope envelope) {
+    private Mono<Void> handleAccountUnfrozen(AccountUnfrozenEvent event, StoredEventEnvelope envelope) {
         log.debug("Handling AccountUnfrozenEvent: accountId={}, reason={}",
                 event.getAggregateId(), event.getReason());
 
@@ -219,7 +219,7 @@ public class AccountLedgerProjectionService extends ProjectionService<AccountLed
                 .then();
     }
 
-    private Mono<Void> handleAccountClosed(AccountClosedEvent event, EventEnvelope envelope) {
+    private Mono<Void> handleAccountClosed(AccountClosedEvent event, StoredEventEnvelope envelope) {
         log.debug("Handling AccountClosedEvent: accountId={}, reason={}",
                 event.getAggregateId(), event.getReason());
 

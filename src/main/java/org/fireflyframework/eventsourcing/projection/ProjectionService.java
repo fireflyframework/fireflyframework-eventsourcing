@@ -17,7 +17,7 @@
 package org.fireflyframework.eventsourcing.projection;
 
 import org.fireflyframework.eventsourcing.domain.Event;
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
@@ -67,7 +67,7 @@ public abstract class ProjectionService<T> {
      * @param envelope the event envelope containing the event and metadata
      * @return a Mono that completes when the projection is updated
      */
-    public abstract Mono<Void> handleEvent(EventEnvelope envelope);
+    public abstract Mono<Void> handleEvent(StoredEventEnvelope envelope);
     
     /**
      * Gets the current position of this projection.
@@ -99,7 +99,7 @@ public abstract class ProjectionService<T> {
      * @param events the events to process
      * @return a Mono that completes when all events are processed
      */
-    public Mono<Void> processBatch(Flux<EventEnvelope> events) {
+    public Mono<Void> processBatch(Flux<StoredEventEnvelope> events) {
         return events
             .collectList()
             .flatMap(eventList -> {
@@ -115,7 +115,7 @@ public abstract class ProjectionService<T> {
                 return Flux.fromIterable(eventList)
                     .concatMap(this::handleEvent)
                     .then(updatePosition(eventList.stream()
-                                       .mapToLong(EventEnvelope::getGlobalSequence)
+                                       .mapToLong(StoredEventEnvelope::getGlobalSequence)
                                        .max()
                                        .orElse(0L)))
                     .doOnSuccess(v -> {
@@ -139,7 +139,7 @@ public abstract class ProjectionService<T> {
      * @param events the events to process
      * @return a Mono that completes when all events are processed
      */
-    public Mono<Void> processIndividually(Flux<EventEnvelope> events) {
+    public Mono<Void> processIndividually(Flux<StoredEventEnvelope> events) {
         return events
             .flatMap(envelope -> {
                 Timer.Sample timerSample = metrics.startEventProcessingTimer();
@@ -257,8 +257,8 @@ public abstract class ProjectionService<T> {
      * @param handler the handler function for this event type
      * @return a Mono that processes the event if it matches, or empty if it doesn't
      */
-    protected Mono<Void> handleEventType(EventEnvelope envelope, String eventType, 
-                                        java.util.function.Function<EventEnvelope, Mono<Void>> handler) {
+    protected Mono<Void> handleEventType(StoredEventEnvelope envelope, String eventType, 
+                                        java.util.function.Function<StoredEventEnvelope, Mono<Void>> handler) {
         if (eventType.equals(envelope.getEventType())) {
             return handler.apply(envelope);
         }
@@ -271,7 +271,7 @@ public abstract class ProjectionService<T> {
      * @param envelope the event envelope
      * @return metadata map
      */
-    protected Map<String, Object> extractMetadata(EventEnvelope envelope) {
+    protected Map<String, Object> extractMetadata(StoredEventEnvelope envelope) {
         Map<String, Object> metadata = new java.util.HashMap<>();
         metadata.put("eventId", envelope.getEventId().toString());
         metadata.put("aggregateId", envelope.getAggregateId().toString());

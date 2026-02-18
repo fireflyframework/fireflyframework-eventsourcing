@@ -7,12 +7,12 @@
     <parent>
         <groupId>org.fireflyframework</groupId>
         <artifactId>fireflyframework-parent</artifactId>
-        <version>26.02.04</version>
+        <version>26.02.05</version>
         <relativePath/>
     </parent>
 
     <artifactId>fireflyframework-eventsourcing</artifactId>
-    <version>26.02.04</version>
+    <version>26.02.05</version>
     <packaging>jar</packaging>
 
     <name>Firefly Framework - Common Event Sourcing Library</name>
@@ -99,7 +99,7 @@
 
         <!-- MySQL R2DBC driver -->
         <dependency>
-            <groupId>dev.miku</groupId>
+            <groupId>io.asyncer</groupId>
             <artifactId>r2dbc-mysql</artifactId>
             <optional>true</optional>
         </dependency>

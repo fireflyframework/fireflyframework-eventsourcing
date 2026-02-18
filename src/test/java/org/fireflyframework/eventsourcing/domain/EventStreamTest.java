@@ -54,11 +54,11 @@ class EventStreamTest {
         Event event3 = new TestEvent(aggregateId, "event3");
         
         // Create envelopes with different versions
-        EventEnvelope envelope1 = EventEnvelope.of(event1, "TestAggregate", 1L, 100L);
-        EventEnvelope envelope2 = EventEnvelope.of(event2, "TestAggregate", 2L, 101L);
-        EventEnvelope envelope3 = EventEnvelope.of(event3, "TestAggregate", 3L, 102L);
+        StoredEventEnvelope envelope1 = StoredEventEnvelope.of(event1, "TestAggregate", 1L, 100L);
+        StoredEventEnvelope envelope2 = StoredEventEnvelope.of(event2, "TestAggregate", 2L, 101L);
+        StoredEventEnvelope envelope3 = StoredEventEnvelope.of(event3, "TestAggregate", 3L, 102L);
         
-        List<EventEnvelope> envelopes = List.of(envelope1, envelope2, envelope3);
+        List<StoredEventEnvelope> envelopes = List.of(envelope1, envelope2, envelope3);
         EventStream stream = EventStream.of(aggregateId, "TestAggregate", envelopes);
         
         assertEquals(aggregateId, stream.getAggregateId());
@@ -76,30 +76,30 @@ class EventStreamTest {
         UUID aggregateId = UUID.randomUUID();
         
         // Create test events with versions 1, 2, 3, 4, 5
-        List<EventEnvelope> envelopes = List.of(
-            EventEnvelope.of(new TestEvent(aggregateId, "event1"), "TestAggregate", 1L, 100L),
-            EventEnvelope.of(new TestEvent(aggregateId, "event2"), "TestAggregate", 2L, 101L),
-            EventEnvelope.of(new TestEvent(aggregateId, "event3"), "TestAggregate", 3L, 102L),
-            EventEnvelope.of(new TestEvent(aggregateId, "event4"), "TestAggregate", 4L, 103L),
-            EventEnvelope.of(new TestEvent(aggregateId, "event5"), "TestAggregate", 5L, 104L)
+        List<StoredEventEnvelope> envelopes = List.of(
+            StoredEventEnvelope.of(new TestEvent(aggregateId, "event1"), "TestAggregate", 1L, 100L),
+            StoredEventEnvelope.of(new TestEvent(aggregateId, "event2"), "TestAggregate", 2L, 101L),
+            StoredEventEnvelope.of(new TestEvent(aggregateId, "event3"), "TestAggregate", 3L, 102L),
+            StoredEventEnvelope.of(new TestEvent(aggregateId, "event4"), "TestAggregate", 4L, 103L),
+            StoredEventEnvelope.of(new TestEvent(aggregateId, "event5"), "TestAggregate", 5L, 104L)
         );
         
         EventStream stream = EventStream.of(aggregateId, "TestAggregate", envelopes);
         
         // Test getEventsFromVersion
-        List<EventEnvelope> fromVersion3 = stream.getEventsFromVersion(3L);
+        List<StoredEventEnvelope> fromVersion3 = stream.getEventsFromVersion(3L);
         assertEquals(3, fromVersion3.size());
         assertEquals(3L, fromVersion3.get(0).getAggregateVersion());
         assertEquals(5L, fromVersion3.get(2).getAggregateVersion());
         
         // Test getEventsToVersion
-        List<EventEnvelope> toVersion3 = stream.getEventsToVersion(3L);
+        List<StoredEventEnvelope> toVersion3 = stream.getEventsToVersion(3L);
         assertEquals(3, toVersion3.size());
         assertEquals(1L, toVersion3.get(0).getAggregateVersion());
         assertEquals(3L, toVersion3.get(2).getAggregateVersion());
         
         // Test getEventsInRange
-        List<EventEnvelope> inRange = stream.getEventsInRange(2L, 4L);
+        List<StoredEventEnvelope> inRange = stream.getEventsInRange(2L, 4L);
         assertEquals(3, inRange.size());
         assertEquals(2L, inRange.get(0).getAggregateVersion());
         assertEquals(4L, inRange.get(2).getAggregateVersion());
@@ -113,10 +113,10 @@ class EventStreamTest {
         Event validEvent = new TestEvent(aggregateId, "valid");
         Event invalidEvent = new TestEvent(differentAggregateId, "invalid");
         
-        EventEnvelope validEnvelope = EventEnvelope.of(validEvent, "TestAggregate", 1L, 100L);
-        EventEnvelope invalidEnvelope = EventEnvelope.of(invalidEvent, "TestAggregate", 2L, 101L);
+        StoredEventEnvelope validEnvelope = StoredEventEnvelope.of(validEvent, "TestAggregate", 1L, 100L);
+        StoredEventEnvelope invalidEnvelope = StoredEventEnvelope.of(invalidEvent, "TestAggregate", 2L, 101L);
         
-        List<EventEnvelope> envelopes = List.of(validEnvelope, invalidEnvelope);
+        List<StoredEventEnvelope> envelopes = List.of(validEnvelope, invalidEnvelope);
         
         // Should throw exception for mismatched aggregate IDs
         assertThrows(IllegalArgumentException.class, () -> {
@@ -129,10 +129,10 @@ class EventStreamTest {
         UUID aggregateId = UUID.randomUUID();
         
         Event event = new TestEvent(aggregateId, "test");
-        EventEnvelope envelope1 = EventEnvelope.of(event, "TestAggregate", 1L, 100L);
-        EventEnvelope envelope2 = EventEnvelope.of(event, "DifferentAggregate", 2L, 101L);
+        StoredEventEnvelope envelope1 = StoredEventEnvelope.of(event, "TestAggregate", 1L, 100L);
+        StoredEventEnvelope envelope2 = StoredEventEnvelope.of(event, "DifferentAggregate", 2L, 101L);
         
-        List<EventEnvelope> envelopes = List.of(envelope1, envelope2);
+        List<StoredEventEnvelope> envelopes = List.of(envelope1, envelope2);
         
         // Should throw exception for mismatched aggregate types
         assertThrows(IllegalArgumentException.class, () -> {
@@ -170,11 +170,11 @@ class EventStreamTest {
         UUID aggregateId = UUID.randomUUID();
         
         // Create events with non-sequential versions (3, 1, 5, 2)
-        List<EventEnvelope> envelopes = List.of(
-            EventEnvelope.of(new TestEvent(aggregateId, "event3"), "TestAggregate", 3L, 102L),
-            EventEnvelope.of(new TestEvent(aggregateId, "event1"), "TestAggregate", 1L, 100L),
-            EventEnvelope.of(new TestEvent(aggregateId, "event5"), "TestAggregate", 5L, 104L),
-            EventEnvelope.of(new TestEvent(aggregateId, "event2"), "TestAggregate", 2L, 101L)
+        List<StoredEventEnvelope> envelopes = List.of(
+            StoredEventEnvelope.of(new TestEvent(aggregateId, "event3"), "TestAggregate", 3L, 102L),
+            StoredEventEnvelope.of(new TestEvent(aggregateId, "event1"), "TestAggregate", 1L, 100L),
+            StoredEventEnvelope.of(new TestEvent(aggregateId, "event5"), "TestAggregate", 5L, 104L),
+            StoredEventEnvelope.of(new TestEvent(aggregateId, "event2"), "TestAggregate", 2L, 101L)
         );
         
         EventStream stream = EventStream.of(aggregateId, "TestAggregate", envelopes);

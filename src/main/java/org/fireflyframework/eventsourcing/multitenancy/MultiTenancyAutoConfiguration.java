@@ -18,18 +18,18 @@ package org.fireflyframework.eventsourcing.multitenancy;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 
 /**
  * Configuration for multi-tenancy support in event sourcing.
  * Enables tenant isolation for events, aggregates, and projections.
  */
-@Configuration
+@AutoConfiguration
 @ConditionalOnProperty(prefix = "firefly.eventsourcing.multitenancy", name = "enabled", havingValue = "true", matchIfMissing = false)
 @Slf4j
-public class MultiTenancyConfiguration {
+public class MultiTenancyAutoConfiguration {
 
-    public MultiTenancyConfiguration() {
+    public MultiTenancyAutoConfiguration() {
         log.info("Multi-tenancy support enabled for Event Sourcing");
     }
 }

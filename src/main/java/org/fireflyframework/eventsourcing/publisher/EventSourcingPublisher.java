@@ -20,7 +20,7 @@ import org.fireflyframework.eda.publisher.EventPublisher;
 import org.fireflyframework.eda.publisher.EventPublisherFactory;
 import org.fireflyframework.eventsourcing.config.EventSourcingProperties;
 import org.fireflyframework.eventsourcing.domain.Event;
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.logging.EventSourcingLoggingContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,7 +62,7 @@ public class EventSourcingPublisher {
      * @param envelope the event envelope to publish
      * @return a Mono that completes when the event is published
      */
-    public Mono<Void> publishEvent(EventEnvelope envelope) {
+    public Mono<Void> publishEvent(StoredEventEnvelope envelope) {
         long startTime = System.currentTimeMillis();
 
         return Mono.fromRunnable(() -> validateEnvelope(envelope))
@@ -102,7 +102,7 @@ public class EventSourcingPublisher {
      * @param envelopes the event envelopes to publish
      * @return a Mono that completes when all events have been processed
      */
-    public Mono<Void> publishEvents(List<EventEnvelope> envelopes) {
+    public Mono<Void> publishEvents(List<StoredEventEnvelope> envelopes) {
         if (envelopes == null || envelopes.isEmpty()) {
             log.debug("No events to publish (empty or null list)");
             return Mono.empty();
@@ -172,7 +172,7 @@ public class EventSourcingPublisher {
      * @param envelope the event envelope
      * @return the destination
      */
-    private String determineDestination(EventEnvelope envelope) {
+    private String determineDestination(StoredEventEnvelope envelope) {
         return determineDestination(envelope.getEvent());
     }
 
@@ -207,7 +207,7 @@ public class EventSourcingPublisher {
      * @param envelope the event envelope
      * @return enriched metadata
      */
-    private Map<String, Object> enrichMetadata(EventEnvelope envelope) {
+    private Map<String, Object> enrichMetadata(StoredEventEnvelope envelope) {
         Map<String, Object> metadata = Map.of(
                 "eventId", envelope.getEventId().toString(),
                 "aggregateId", envelope.getAggregateId().toString(),
@@ -266,7 +266,7 @@ public class EventSourcingPublisher {
      * @param envelope the event envelope to validate
      * @throws IllegalArgumentException if validation fails
      */
-    private void validateEnvelope(EventEnvelope envelope) {
+    private void validateEnvelope(StoredEventEnvelope envelope) {
         if (envelope == null) {
             throw new IllegalArgumentException("Event envelope cannot be null");
         }

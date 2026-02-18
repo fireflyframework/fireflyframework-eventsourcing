@@ -70,7 +70,7 @@ public class EventStream {
      * The list of event envelopes in this stream, ordered by aggregate version.
      * Events should be in ascending version order.
      */
-    private final List<EventEnvelope> events;
+    private final List<StoredEventEnvelope> events;
 
     /**
      * Whether this stream is empty (contains no events).
@@ -95,7 +95,7 @@ public class EventStream {
      *
      * @return the first event envelope, or null if stream is empty
      */
-    public EventEnvelope getFirstEvent() {
+    public StoredEventEnvelope getFirstEvent() {
         return isEmpty() ? null : events.get(0);
     }
 
@@ -104,7 +104,7 @@ public class EventStream {
      *
      * @return the last event envelope, or null if stream is empty
      */
-    public EventEnvelope getLastEvent() {
+    public StoredEventEnvelope getLastEvent() {
         return isEmpty() ? null : events.get(events.size() - 1);
     }
 
@@ -114,7 +114,7 @@ public class EventStream {
      * @param fromVersion the minimum version to include
      * @return a list of events from the specified version onwards
      */
-    public List<EventEnvelope> getEventsFromVersion(long fromVersion) {
+    public List<StoredEventEnvelope> getEventsFromVersion(long fromVersion) {
         if (isEmpty()) {
             return List.of();
         }
@@ -130,7 +130,7 @@ public class EventStream {
      * @param toVersion the maximum version to include
      * @return a list of events up to the specified version
      */
-    public List<EventEnvelope> getEventsToVersion(long toVersion) {
+    public List<StoredEventEnvelope> getEventsToVersion(long toVersion) {
         if (isEmpty()) {
             return List.of();
         }
@@ -147,7 +147,7 @@ public class EventStream {
      * @param toVersion the maximum version to include
      * @return a list of events in the specified range
      */
-    public List<EventEnvelope> getEventsInRange(long fromVersion, long toVersion) {
+    public List<StoredEventEnvelope> getEventsInRange(long fromVersion, long toVersion) {
         if (isEmpty()) {
             return List.of();
         }
@@ -187,7 +187,7 @@ public class EventStream {
      * @return the event stream
      * @throws IllegalArgumentException if events belong to different aggregates or are not ordered
      */
-    public static EventStream of(UUID aggregateId, String aggregateType, List<EventEnvelope> events) {
+    public static EventStream of(UUID aggregateId, String aggregateType, List<StoredEventEnvelope> events) {
         if (events == null || events.isEmpty()) {
             return empty(aggregateId, aggregateType);
         }
@@ -203,12 +203,12 @@ public class EventStream {
 
         // Find version range
         long minVersion = events.stream()
-                .mapToLong(EventEnvelope::getAggregateVersion)
+                .mapToLong(StoredEventEnvelope::getAggregateVersion)
                 .min()
                 .orElse(0L);
         
         long maxVersion = events.stream()
-                .mapToLong(EventEnvelope::getAggregateVersion)
+                .mapToLong(StoredEventEnvelope::getAggregateVersion)
                 .max()
                 .orElse(0L);
 

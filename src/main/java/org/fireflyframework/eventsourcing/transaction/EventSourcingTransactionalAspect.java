@@ -17,7 +17,7 @@
 package org.fireflyframework.eventsourcing.transaction;
 
 import org.fireflyframework.eventsourcing.annotation.EventSourcingTransactional;
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.logging.EventSourcingLoggingContext;
 import org.fireflyframework.eventsourcing.publisher.EventSourcingPublisher;
 import org.fireflyframework.eventsourcing.store.ConcurrencyException;
@@ -423,7 +423,7 @@ public class EventSourcingTransactionalAspect {
 
         // Publish events from Reactor context after transaction commit
         return Mono.deferContextual(ctx -> {
-            List<EventEnvelope> pendingEvents = ctx.getOrDefault(PENDING_EVENTS_KEY, new ArrayList<>());
+            List<StoredEventEnvelope> pendingEvents = ctx.getOrDefault(PENDING_EVENTS_KEY, new ArrayList<>());
 
             if (pendingEvents.isEmpty()) {
                 log.debug("No pending events to publish");
@@ -452,9 +452,9 @@ public class EventSourcingTransactionalAspect {
      * Adds an event envelope to the pending events list in the Reactor context.
      * This is used by the EventStore to track events that need to be published.
      */
-    public static <T> Mono<T> addPendingEvent(Mono<T> mono, EventEnvelope event) {
+    public static <T> Mono<T> addPendingEvent(Mono<T> mono, StoredEventEnvelope event) {
         return mono.contextWrite(ctx -> {
-            List<EventEnvelope> events = new ArrayList<>(ctx.getOrDefault(PENDING_EVENTS_KEY, new ArrayList<>()));
+            List<StoredEventEnvelope> events = new ArrayList<>(ctx.getOrDefault(PENDING_EVENTS_KEY, new ArrayList<>()));
             events.add(event);
             return ctx.put(PENDING_EVENTS_KEY, events);
         });
@@ -463,9 +463,9 @@ public class EventSourcingTransactionalAspect {
     /**
      * Adds multiple event envelopes to the pending events list in the Reactor context.
      */
-    public static <T> Mono<T> addPendingEvents(Mono<T> mono, List<EventEnvelope> newEvents) {
+    public static <T> Mono<T> addPendingEvents(Mono<T> mono, List<StoredEventEnvelope> newEvents) {
         return mono.contextWrite(ctx -> {
-            List<EventEnvelope> events = new ArrayList<>(ctx.getOrDefault(PENDING_EVENTS_KEY, new ArrayList<>()));
+            List<StoredEventEnvelope> events = new ArrayList<>(ctx.getOrDefault(PENDING_EVENTS_KEY, new ArrayList<>()));
             events.addAll(newEvents);
             return ctx.put(PENDING_EVENTS_KEY, events);
         });

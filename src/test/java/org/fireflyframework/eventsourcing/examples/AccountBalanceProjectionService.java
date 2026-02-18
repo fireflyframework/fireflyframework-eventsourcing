@@ -16,7 +16,7 @@
 
 package org.fireflyframework.eventsourcing.examples;
 
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.projection.ProjectionService;
 import org.fireflyframework.eventsourcing.store.EventStore;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -57,7 +57,7 @@ public class AccountBalanceProjectionService extends ProjectionService<AccountBa
     }
     
     @Override
-    public Mono<Void> handleEvent(EventEnvelope envelope) {
+    public Mono<Void> handleEvent(StoredEventEnvelope envelope) {
         return handleEventType(envelope, "AccountCreated", this::handleAccountCreated)
                 .switchIfEmpty(handleEventType(envelope, "MoneyDeposited", this::handleMoneyDeposited))
                 .switchIfEmpty(handleEventType(envelope, "MoneyWithdrawn", this::handleMoneyWithdrawn))
@@ -65,7 +65,7 @@ public class AccountBalanceProjectionService extends ProjectionService<AccountBa
                 .switchIfEmpty(Mono.empty()); // Ignore other event types
     }
     
-    private Mono<Void> handleAccountCreated(EventEnvelope envelope) {
+    private Mono<Void> handleAccountCreated(StoredEventEnvelope envelope) {
         if (envelope.getEvent() instanceof AccountCreatedEvent event) {
             AccountBalanceProjection projection = AccountBalanceProjection.builder()
                     .accountId(envelope.getAggregateId())
@@ -84,7 +84,7 @@ public class AccountBalanceProjectionService extends ProjectionService<AccountBa
         return Mono.empty();
     }
     
-    private Mono<Void> handleMoneyDeposited(EventEnvelope envelope) {
+    private Mono<Void> handleMoneyDeposited(StoredEventEnvelope envelope) {
         if (envelope.getEvent() instanceof MoneyDepositedEvent event) {
             return updateBalance(envelope.getAggregateId(), 
                                balance -> balance.add(event.getAmount()),
@@ -95,7 +95,7 @@ public class AccountBalanceProjectionService extends ProjectionService<AccountBa
         return Mono.empty();
     }
     
-    private Mono<Void> handleMoneyWithdrawn(EventEnvelope envelope) {
+    private Mono<Void> handleMoneyWithdrawn(StoredEventEnvelope envelope) {
         if (envelope.getEvent() instanceof MoneyWithdrawnEvent event) {
             return updateBalance(envelope.getAggregateId(), 
                                balance -> balance.subtract(event.getAmount()),
@@ -106,7 +106,7 @@ public class AccountBalanceProjectionService extends ProjectionService<AccountBa
         return Mono.empty();
     }
     
-    private Mono<Void> handleMoneyTransferred(EventEnvelope envelope) {
+    private Mono<Void> handleMoneyTransferred(StoredEventEnvelope envelope) {
         if (envelope.getEvent() instanceof MoneyTransferredEvent event) {
             // Handle both source and destination account updates
             Mono<Void> updateSource = updateBalance(event.getSourceAccountId(), 

@@ -19,7 +19,7 @@ package org.fireflyframework.eventsourcing;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import org.fireflyframework.eventsourcing.aggregate.AggregateRoot;
 import org.fireflyframework.eventsourcing.domain.Event;
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -80,7 +80,7 @@ class EventSourcingIntegrationTest {
         
         // Create event envelopes for loading from history
         var envelopes = List.of(
-            EventEnvelope.builder()
+            StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .aggregateId(accountId)
                 .aggregateType("Account")
@@ -90,7 +90,7 @@ class EventSourcingIntegrationTest {
                 .eventType(accountCreatedEvent.getEventType())
                 .createdAt(accountCreatedEvent.getEventTimestamp())
                 .build(),
-            EventEnvelope.builder()
+            StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .aggregateId(accountId)
                 .aggregateType("Account")
@@ -100,7 +100,7 @@ class EventSourcingIntegrationTest {
                 .eventType(withdrawEvent.getEventType())
                 .createdAt(withdrawEvent.getEventTimestamp())
                 .build(),
-            EventEnvelope.builder()
+            StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .aggregateId(accountId)
                 .aggregateType("Account")

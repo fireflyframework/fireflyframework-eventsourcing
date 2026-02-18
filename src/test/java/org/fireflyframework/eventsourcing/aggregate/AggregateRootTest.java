@@ -18,7 +18,7 @@ package org.fireflyframework.eventsourcing.aggregate;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import org.fireflyframework.eventsourcing.domain.Event;
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -94,10 +94,10 @@ class AggregateRootTest {
         MoneyDepositedEvent depositEvent = new MoneyDepositedEvent(accountId, BigDecimal.valueOf(50));
         
         // Create event envelopes
-        List<EventEnvelope> history = List.of(
-            EventEnvelope.of(createdEvent, "Account", 1L, 100L),
-            EventEnvelope.of(withdrawEvent, "Account", 2L, 101L),
-            EventEnvelope.of(depositEvent, "Account", 3L, 102L)
+        List<StoredEventEnvelope> history = List.of(
+            StoredEventEnvelope.of(createdEvent, "Account", 1L, 100L),
+            StoredEventEnvelope.of(withdrawEvent, "Account", 2L, 101L),
+            StoredEventEnvelope.of(depositEvent, "Account", 3L, 102L)
         );
         
         // Reconstruct aggregate from history
@@ -142,7 +142,7 @@ class AggregateRootTest {
         // Event with different aggregate ID
         UUID differentId = UUID.randomUUID();
         AccountCreatedEvent invalidEvent = new AccountCreatedEvent(differentId, "12345", BigDecimal.valueOf(1000));
-        EventEnvelope invalidEnvelope = EventEnvelope.of(invalidEvent, "Account", 1L, 100L);
+        StoredEventEnvelope invalidEnvelope = StoredEventEnvelope.of(invalidEvent, "Account", 1L, 100L);
         
         assertThrows(IllegalArgumentException.class, () -> {
             account.loadFromHistory(List.of(invalidEnvelope));
@@ -155,7 +155,7 @@ class AggregateRootTest {
         TestAccount account = new TestAccount(accountId);
         
         AccountCreatedEvent event = new AccountCreatedEvent(accountId, "12345", BigDecimal.valueOf(1000));
-        EventEnvelope invalidEnvelope = EventEnvelope.of(event, "DifferentType", 1L, 100L);
+        StoredEventEnvelope invalidEnvelope = StoredEventEnvelope.of(event, "DifferentType", 1L, 100L);
         
         assertThrows(IllegalArgumentException.class, () -> {
             account.loadFromHistory(List.of(invalidEnvelope));

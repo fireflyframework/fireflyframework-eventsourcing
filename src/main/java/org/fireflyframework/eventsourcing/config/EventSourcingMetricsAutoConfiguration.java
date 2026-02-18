@@ -24,7 +24,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 
 /**
  * Auto-configuration for event sourcing metrics collection.
@@ -37,13 +37,13 @@ import org.springframework.context.annotation.Configuration;
  * the metrics bean is available even when loaded through component scanning
  * independently of the main auto-configuration.</p>
  */
-@Configuration
+@AutoConfiguration
 @ConditionalOnClass(name = "io.micrometer.core.instrument.MeterRegistry")
 @ConditionalOnProperty(prefix = "firefly.eventsourcing.performance", name = "metrics-enabled", havingValue = "true", matchIfMissing = true)
 @Slf4j
-public class EventSourcingMetricsConfiguration {
+public class EventSourcingMetricsAutoConfiguration {
 
-    public EventSourcingMetricsConfiguration() {
+    public EventSourcingMetricsAutoConfiguration() {
         log.debug("Event Sourcing Metrics Configuration initialized");
     }
 

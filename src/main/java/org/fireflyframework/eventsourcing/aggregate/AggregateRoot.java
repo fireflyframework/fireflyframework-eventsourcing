@@ -17,7 +17,7 @@
 package org.fireflyframework.eventsourcing.aggregate;
 
 import org.fireflyframework.eventsourcing.domain.Event;
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.logging.EventSourcingLoggingContext;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -170,7 +170,7 @@ import java.util.UUID;
  * </pre>
  *
  * @see Event
- * @see EventEnvelope
+ * @see StoredEventEnvelope
  * @see org.fireflyframework.eventsourcing.store.EventStore
  */
 @Getter
@@ -275,7 +275,7 @@ public abstract class AggregateRoot {
      * @param events the historical events to apply
      * @throws IllegalArgumentException if events belong to a different aggregate
      */
-    public void loadFromHistory(List<EventEnvelope> events) {
+    public void loadFromHistory(List<StoredEventEnvelope> events) {
         if (events == null || events.isEmpty()) {
             log.debug("No events to load for aggregate: id={}, type={}", id, aggregateType);
             return;
@@ -286,7 +286,7 @@ public abstract class AggregateRoot {
                 id, aggregateType, events.size());
 
         // Validate all events belong to this aggregate
-        for (EventEnvelope envelope : events) {
+        for (StoredEventEnvelope envelope : events) {
             if (!id.equals(envelope.getAggregateId())) {
                 throw new IllegalArgumentException(
                     "Event aggregate ID (" + envelope.getAggregateId() +
@@ -303,7 +303,7 @@ public abstract class AggregateRoot {
 
         // Apply events in order
         long startVersion = version;
-        for (EventEnvelope envelope : events) {
+        for (StoredEventEnvelope envelope : events) {
             if (log.isTraceEnabled()) {
                 log.trace("Applying historical event: eventType={}, version={}",
                         envelope.getEvent().getEventType(), envelope.getAggregateVersion());

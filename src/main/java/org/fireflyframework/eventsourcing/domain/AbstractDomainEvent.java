@@ -88,7 +88,7 @@ import java.util.UUID;
  * </ul>
  *
  * @see Event
- * @see EventEnvelope
+ * @see StoredEventEnvelope
  */
 @Getter
 @SuperBuilder

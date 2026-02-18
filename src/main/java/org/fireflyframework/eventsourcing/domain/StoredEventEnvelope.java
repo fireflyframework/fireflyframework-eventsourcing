@@ -27,7 +27,7 @@ import java.util.UUID;
 /**
  * Envelope that wraps domain events with additional metadata for storage and processing.
  * <p>
- * The EventEnvelope separates concerns between:
+ * The StoredEventEnvelope separates concerns between:
  * - Domain event data (the actual business event)
  * - Storage metadata (sequence numbers, persistence timestamps, etc.)
  * - Processing metadata (correlation IDs, causation information, etc.)
@@ -39,7 +39,7 @@ import java.util.UUID;
 @Data
 @Builder
 @Jacksonized
-public class EventEnvelope {
+public class StoredEventEnvelope {
 
     /**
      * The unique identifier for this event envelope.
@@ -99,18 +99,18 @@ public class EventEnvelope {
     private final Map<String, Object> metadata = Map.of();
 
     /**
-     * Creates an EventEnvelope for a new domain event.
+     * Creates an StoredEventEnvelope for a new domain event.
      *
      * @param event the domain event to wrap
      * @param aggregateType the type of aggregate
      * @param aggregateVersion the version within the aggregate stream
      * @param globalSequence the global sequence number
      * @param metadata additional metadata
-     * @return a new EventEnvelope
+     * @return a new StoredEventEnvelope
      */
-    public static EventEnvelope of(Event event, String aggregateType, long aggregateVersion, 
+    public static StoredEventEnvelope of(Event event, String aggregateType, long aggregateVersion, 
                                    long globalSequence, Map<String, Object> metadata) {
-        return EventEnvelope.builder()
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(event)
                 .aggregateId(event.getAggregateId())
@@ -124,15 +124,15 @@ public class EventEnvelope {
     }
 
     /**
-     * Creates an EventEnvelope for a new domain event with empty metadata.
+     * Creates an StoredEventEnvelope for a new domain event with empty metadata.
      *
      * @param event the domain event to wrap
      * @param aggregateType the type of aggregate
      * @param aggregateVersion the version within the aggregate stream
      * @param globalSequence the global sequence number
-     * @return a new EventEnvelope
+     * @return a new StoredEventEnvelope
      */
-    public static EventEnvelope of(Event event, String aggregateType, long aggregateVersion, 
+    public static StoredEventEnvelope of(Event event, String aggregateType, long aggregateVersion, 
                                    long globalSequence) {
         return of(event, aggregateType, aggregateVersion, globalSequence, Map.of());
     }

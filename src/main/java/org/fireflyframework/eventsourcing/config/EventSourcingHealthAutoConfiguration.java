@@ -30,7 +30,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 
 import java.util.List;
 
@@ -40,13 +40,13 @@ import java.util.List;
  * Registers Spring Boot Actuator health checks for the event store,
  * outbox, snapshot store, and projections when Actuator is on the classpath.
  */
-@Configuration
+@AutoConfiguration
 @ConditionalOnClass(name = "org.springframework.boot.actuator.health.HealthIndicator")
 @ConditionalOnProperty(prefix = "firefly.eventsourcing.performance", name = "health-checks-enabled", havingValue = "true", matchIfMissing = true)
 @Slf4j
-public class EventSourcingHealthConfiguration {
+public class EventSourcingHealthAutoConfiguration {
 
-    public EventSourcingHealthConfiguration() {
+    public EventSourcingHealthAutoConfiguration() {
         log.debug("Event Sourcing Health Configuration initialized");
     }
 

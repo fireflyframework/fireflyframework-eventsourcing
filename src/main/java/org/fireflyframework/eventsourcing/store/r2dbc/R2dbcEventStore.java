@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.fireflyframework.core.queries.PaginationRequest;
 import org.fireflyframework.eventsourcing.config.EventSourcingProperties;
 import org.fireflyframework.eventsourcing.domain.Event;
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.domain.EventStream;
 import org.fireflyframework.eventsourcing.logging.EventSourcingLoggingContext;
 import org.fireflyframework.eventsourcing.outbox.EventOutboxService;
@@ -139,7 +139,7 @@ public class R2dbcEventStore implements EventStore {
                 checkConcurrency(aggregateId, aggregateType, expectedVersion)
                         .flatMap(currentVersion -> {
                             log.debug("Concurrency check passed. Current version: {}, creating envelopes", currentVersion);
-                            List<EventEnvelope> envelopes = createEventEnvelopes(
+                            List<StoredEventEnvelope> envelopes = createEventEnvelopes(
                                     events, aggregateType, currentVersion, metadata);
 
                             log.debug("Created {} event envelopes, inserting into database", envelopes.size());
@@ -269,12 +269,12 @@ public class R2dbcEventStore implements EventStore {
     }
 
     @Override
-    public Flux<EventEnvelope> streamAllEvents() {
+    public Flux<StoredEventEnvelope> streamAllEvents() {
         return streamAllEvents(0L);
     }
 
     @Override
-    public Flux<EventEnvelope> streamAllEvents(long fromSequence) {
+    public Flux<StoredEventEnvelope> streamAllEvents(long fromSequence) {
         String sql = """
                 SELECT event_id, aggregate_id, aggregate_type, aggregate_version, global_sequence,
                        event_type, event_data, metadata, created_at
@@ -290,7 +290,7 @@ public class R2dbcEventStore implements EventStore {
     }
 
     @Override
-    public Flux<EventEnvelope> streamEventsByType(List<String> eventTypes) {
+    public Flux<StoredEventEnvelope> streamEventsByType(List<String> eventTypes) {
         if (eventTypes == null || eventTypes.isEmpty()) {
             return Flux.empty();
         }
@@ -310,7 +310,7 @@ public class R2dbcEventStore implements EventStore {
     }
 
     @Override
-    public Flux<EventEnvelope> streamEventsByAggregateType(List<String> aggregateTypes) {
+    public Flux<StoredEventEnvelope> streamEventsByAggregateType(List<String> aggregateTypes) {
         if (aggregateTypes == null || aggregateTypes.isEmpty()) {
             return Flux.empty();
         }
@@ -330,7 +330,7 @@ public class R2dbcEventStore implements EventStore {
     }
 
     @Override
-    public Flux<EventEnvelope> streamEventsByTimeRange(Instant from, Instant to) {
+    public Flux<StoredEventEnvelope> streamEventsByTimeRange(Instant from, Instant to) {
         String sql = """
                 SELECT event_id, aggregate_id, aggregate_type, aggregate_version, global_sequence,
                        event_type, event_data, metadata, created_at
@@ -347,7 +347,7 @@ public class R2dbcEventStore implements EventStore {
     }
 
     @Override
-    public Flux<EventEnvelope> streamEventsByMetadata(Map<String, Object> metadataCriteria) {
+    public Flux<StoredEventEnvelope> streamEventsByMetadata(Map<String, Object> metadataCriteria) {
         if (metadataCriteria == null || metadataCriteria.isEmpty()) {
             return streamAllEvents();
         }
@@ -426,22 +426,22 @@ public class R2dbcEventStore implements EventStore {
                 });
     }
 
-    private List<EventEnvelope> createEventEnvelopes(List<Event> events, String aggregateType, 
+    private List<StoredEventEnvelope> createEventEnvelopes(List<Event> events, String aggregateType, 
                                                     long baseVersion, Map<String, Object> metadata) {
         long globalSeq = globalSequenceCounter.incrementAndGet(); // Simplified - should be atomic in DB
         
         return events.stream()
                 .map(event -> {
                     long version = baseVersion + events.indexOf(event) + 1;
-                    return EventEnvelope.of(event, aggregateType, version, globalSeq + events.indexOf(event), metadata);
+                    return StoredEventEnvelope.of(event, aggregateType, version, globalSeq + events.indexOf(event), metadata);
                 })
                 .toList();
     }
     
     /**
-     * Converts EventEnvelope to EventEntity for database persistence using R2DBC.
+     * Converts StoredEventEnvelope to EventEntity for database persistence using R2DBC.
      */
-    private EventEntity toEventEntity(EventEnvelope envelope) {
+    private EventEntity toEventEntity(StoredEventEnvelope envelope) {
         try {
             EventEntity entity = new EventEntity();
             entity.setEventId(envelope.getEventId());
@@ -468,7 +468,7 @@ public class R2dbcEventStore implements EventStore {
     /**
      * Alternative method to save events using R2dbcEntityTemplate for better type safety.
      */
-    private Mono<Void> saveEventsWithTemplate(List<EventEnvelope> envelopes) {
+    private Mono<Void> saveEventsWithTemplate(List<StoredEventEnvelope> envelopes) {
         List<EventEntity> entities = envelopes.stream()
                 .map(this::toEventEntity)
                 .toList();
@@ -478,7 +478,7 @@ public class R2dbcEventStore implements EventStore {
                 .then();
     }
 
-    private Mono<Void> insertEvents(List<EventEnvelope> envelopes) {
+    private Mono<Void> insertEvents(List<StoredEventEnvelope> envelopes) {
         String sql = """
                 INSERT INTO events (event_id, aggregate_id, aggregate_type, aggregate_version,
                                   global_sequence, event_type, event_data, metadata, created_at)
@@ -513,7 +513,7 @@ public class R2dbcEventStore implements EventStore {
                 .then();
     }
 
-    private EventEnvelope mapToEventEnvelope(io.r2dbc.spi.Row row, io.r2dbc.spi.RowMetadata metadata) {
+    private StoredEventEnvelope mapToEventEnvelope(io.r2dbc.spi.Row row, io.r2dbc.spi.RowMetadata metadata) {
         try {
             UUID eventId = row.get("event_id", UUID.class);
             UUID aggregateId = row.get("aggregate_id", UUID.class);
@@ -529,7 +529,7 @@ public class R2dbcEventStore implements EventStore {
             Event event = deserializeEvent(eventData, eventType);
             Map<String, Object> eventMetadata = deserializeMetadata(metadataJson);
 
-            return EventEnvelope.builder()
+            return StoredEventEnvelope.builder()
                     .eventId(eventId)
                     .event(event)
                     .aggregateId(aggregateId)
@@ -542,7 +542,7 @@ public class R2dbcEventStore implements EventStore {
                     .build();
 
         } catch (Exception e) {
-            throw new EventStoreException("Failed to map database row to EventEnvelope", e);
+            throw new EventStoreException("Failed to map database row to StoredEventEnvelope", e);
         }
     }
 
@@ -594,7 +594,7 @@ public class R2dbcEventStore implements EventStore {
      * @param envelopes the event envelopes to save to outbox
      * @return mono that completes when all envelopes are saved to outbox
      */
-    private Mono<Void> saveToOutboxIfEnabled(List<EventEnvelope> envelopes) {
+    private Mono<Void> saveToOutboxIfEnabled(List<StoredEventEnvelope> envelopes) {
         if (outboxService == null) {
             log.debug("Outbox service not configured, skipping outbox write");
             return Mono.empty();

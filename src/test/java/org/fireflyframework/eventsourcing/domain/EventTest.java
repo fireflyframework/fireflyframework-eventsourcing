@@ -66,7 +66,7 @@ class EventTest {
         UUID aggregateId = UUID.randomUUID();
         TestEvent event = new TestEvent(aggregateId, "test-data");
         
-        EventEnvelope envelope = EventEnvelope.of(event, "TestAggregate", 1L, 100L);
+        StoredEventEnvelope envelope = StoredEventEnvelope.of(event, "TestAggregate", 1L, 100L);
         
         assertNotNull(envelope.getEventId());
         assertEquals(event, envelope.getEvent());
@@ -89,7 +89,7 @@ class EventTest {
             "userId", "user-789"
         );
         
-        EventEnvelope envelope = EventEnvelope.of(event, "TestAggregate", 1L, 100L, metadata);
+        StoredEventEnvelope envelope = StoredEventEnvelope.of(event, "TestAggregate", 1L, 100L, metadata);
         
         assertEquals(metadata, envelope.getMetadata());
         assertEquals("corr-123", envelope.getCorrelationId());
@@ -107,7 +107,7 @@ class EventTest {
             "boolValue", true
         );
         
-        EventEnvelope envelope = EventEnvelope.of(event, "TestAggregate", 1L, 100L, metadata);
+        StoredEventEnvelope envelope = StoredEventEnvelope.of(event, "TestAggregate", 1L, 100L, metadata);
         
         assertEquals("test", envelope.getMetadataValue("stringValue"));
         assertEquals(42, envelope.getMetadataValue("intValue"));

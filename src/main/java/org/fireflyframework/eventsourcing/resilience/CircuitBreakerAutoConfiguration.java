@@ -23,23 +23,25 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 
 import java.time.Duration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 
 /**
  * Configuration for Circuit Breaker pattern using Resilience4j.
  * Provides fault tolerance for event store operations, outbox processing, and projections.
  */
-@Configuration
+@AutoConfiguration
 @ConditionalOnClass(CircuitBreaker.class)
 @ConditionalOnProperty(prefix = "firefly.eventsourcing.resilience.circuit-breaker", name = "enabled", havingValue = "true", matchIfMissing = false)
 @Slf4j
-public class CircuitBreakerConfiguration {
+public class CircuitBreakerAutoConfiguration {
 
     /**
      * Creates a circuit breaker registry with default configurations.
      */
+    @ConditionalOnMissingBean
     @Bean
     public CircuitBreakerRegistry circuitBreakerRegistry() {
         log.info("Initializing Circuit Breaker Registry for Event Sourcing");
@@ -49,6 +51,7 @@ public class CircuitBreakerConfiguration {
     /**
      * Circuit breaker for event store operations (append, load, query).
      */
+    @ConditionalOnMissingBean
     @Bean
     public CircuitBreaker eventStoreCircuitBreaker(CircuitBreakerRegistry registry) {
         CircuitBreakerConfig config = CircuitBreakerConfig.custom()
@@ -96,6 +99,7 @@ public class CircuitBreakerConfiguration {
     /**
      * Circuit breaker for event outbox processing.
      */
+    @ConditionalOnMissingBean
     @Bean
     public CircuitBreaker outboxCircuitBreaker(CircuitBreakerRegistry registry) {
         CircuitBreakerConfig config = CircuitBreakerConfig.custom()
@@ -129,6 +133,7 @@ public class CircuitBreakerConfiguration {
     /**
      * Circuit breaker for projection processing.
      */
+    @ConditionalOnMissingBean
     @Bean
     public CircuitBreaker projectionCircuitBreaker(CircuitBreakerRegistry registry) {
         CircuitBreakerConfig config = CircuitBreakerConfig.custom()

@@ -17,7 +17,7 @@
 package org.fireflyframework.eventsourcing.examples.ledger;
 
 import org.fireflyframework.eventsourcing.annotation.EventSourcingTransactional;
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.domain.EventStream;
 import org.fireflyframework.eventsourcing.examples.ledger.snapshot.AccountLedgerSnapshot;
 import org.fireflyframework.eventsourcing.logging.EventSourcingLoggingContext;
@@ -257,7 +257,7 @@ public class AccountLedgerService {
                 .map(stream -> {
                     AccountLedger account = new AccountLedger(accountId);
                     // Filter events up to the point in time
-                    List<EventEnvelope> filteredEvents = stream.getEvents().stream()
+                    List<StoredEventEnvelope> filteredEvents = stream.getEvents().stream()
                             .filter(envelope -> !envelope.getCreatedAt().isAfter(pointInTime))
                             .collect(java.util.stream.Collectors.toList());
                     account.loadFromHistory(filteredEvents);

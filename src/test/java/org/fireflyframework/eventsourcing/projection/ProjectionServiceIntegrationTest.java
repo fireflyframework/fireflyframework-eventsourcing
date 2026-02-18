@@ -16,7 +16,7 @@
 
 package org.fireflyframework.eventsourcing.projection;
 
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.examples.AccountBalanceProjection;
 import org.fireflyframework.eventsourcing.examples.AccountBalanceProjectionService;
 import org.fireflyframework.eventsourcing.store.EventStore;
@@ -125,7 +125,7 @@ class ProjectionServiceIntegrationTest {
         org.fireflyframework.eventsourcing.domain.Event testEvent = new org.fireflyframework.eventsourcing.examples.AccountBalanceProjectionService.AccountCreatedEvent(
                 testAccountId, "USD");
         
-        EventEnvelope accountCreatedEvent = EventEnvelope.builder()
+        StoredEventEnvelope accountCreatedEvent = StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(testEvent)
                 .aggregateId(testAccountId)
@@ -154,8 +154,8 @@ class ProjectionServiceIntegrationTest {
     @Test
     void shouldProcessBatchOfEvents() {
         // Given - create actual event objects
-        List<EventEnvelope> events = List.of(
-                EventEnvelope.builder()
+        List<StoredEventEnvelope> events = List.of(
+                StoredEventEnvelope.builder()
                     .eventId(UUID.randomUUID())
                     .event(new org.fireflyframework.eventsourcing.examples.AccountBalanceProjectionService.AccountCreatedEvent(testAccountId, "EUR"))
                     .aggregateId(testAccountId)
@@ -165,7 +165,7 @@ class ProjectionServiceIntegrationTest {
                     .eventType("AccountCreated")
                     .createdAt(Instant.now())
                     .build(),
-                EventEnvelope.builder()
+                StoredEventEnvelope.builder()
                     .eventId(UUID.randomUUID())
                     .event(new org.fireflyframework.eventsourcing.examples.AccountBalanceProjectionService.MoneyDepositedEvent(testAccountId, new BigDecimal("100.50")))
                     .aggregateId(testAccountId)
@@ -175,7 +175,7 @@ class ProjectionServiceIntegrationTest {
                     .eventType("MoneyDeposited")
                     .createdAt(Instant.now())
                     .build(),
-                EventEnvelope.builder()
+                StoredEventEnvelope.builder()
                     .eventId(UUID.randomUUID())
                     .event(new org.fireflyframework.eventsourcing.examples.AccountBalanceProjectionService.MoneyWithdrawnEvent(testAccountId, new BigDecimal("25.25")))
                     .aggregateId(testAccountId)
@@ -185,7 +185,7 @@ class ProjectionServiceIntegrationTest {
                     .eventType("MoneyWithdrawn")
                     .createdAt(Instant.now())
                     .build(),
-                EventEnvelope.builder()
+                StoredEventEnvelope.builder()
                     .eventId(UUID.randomUUID())
                     .event(new org.fireflyframework.eventsourcing.examples.AccountBalanceProjectionService.MoneyDepositedEvent(testAccountId, new BigDecimal("50.00")))
                     .aggregateId(testAccountId)
@@ -224,7 +224,7 @@ class ProjectionServiceIntegrationTest {
     @Test
     void shouldTrackHealthMetrics() {
         // Given
-        EventEnvelope event = createEventEnvelope(
+        StoredEventEnvelope event = createEventEnvelope(
                 testAccountId, 
                 "AccountCreated", 
                 "{\"currency\":\"USD\"}", 
@@ -272,7 +272,7 @@ class ProjectionServiceIntegrationTest {
     @Test
     void shouldHandleProjectionReset() {
         // Given - create some projection data first
-        EventEnvelope event = createEventEnvelope(
+        StoredEventEnvelope event = createEventEnvelope(
                 testAccountId, 
                 "AccountCreated", 
                 "{\"currency\":\"USD\"}", 
@@ -304,7 +304,7 @@ class ProjectionServiceIntegrationTest {
                 .verifyError(); // Should not find the account anymore
     }
     
-    private EventEnvelope createEventEnvelope(UUID aggregateId, String eventType, String eventData, long globalSequence) {
+    private StoredEventEnvelope createEventEnvelope(UUID aggregateId, String eventType, String eventData, long globalSequence) {
         // Create a simple test event
         org.fireflyframework.eventsourcing.domain.Event event = new org.fireflyframework.eventsourcing.domain.Event() {
             @Override
@@ -318,7 +318,7 @@ class ProjectionServiceIntegrationTest {
             }
         };
         
-        return EventEnvelope.builder()
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(event)
                 .aggregateId(aggregateId)

@@ -19,7 +19,7 @@ package org.fireflyframework.eventsourcing.outbox;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.fireflyframework.eventsourcing.domain.Event;
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.logging.EventSourcingLoggingContext;
 import org.fireflyframework.eventsourcing.publisher.EventSourcingPublisher;
 import org.fireflyframework.eventsourcing.store.r2dbc.EventOutboxEntity;
@@ -67,7 +67,7 @@ public class EventOutboxService {
      * @param envelope the event envelope to save
      * @return mono that completes when the entry is saved
      */
-    public Mono<EventOutboxEntity> saveToOutbox(EventEnvelope envelope) {
+    public Mono<EventOutboxEntity> saveToOutbox(StoredEventEnvelope envelope) {
         return saveToOutbox(envelope, 5, 3); // Default priority=5, max_retries=3
     }
 
@@ -79,7 +79,7 @@ public class EventOutboxService {
      * @param maxRetries maximum number of retry attempts
      * @return mono that completes when the entry is saved
      */
-    public Mono<EventOutboxEntity> saveToOutbox(EventEnvelope envelope, int priority, int maxRetries) {
+    public Mono<EventOutboxEntity> saveToOutbox(StoredEventEnvelope envelope, int priority, int maxRetries) {
         return Mono.fromCallable(() -> {
             EventOutboxEntity entity = new EventOutboxEntity();
             entity.setOutboxId(UUID.randomUUID());

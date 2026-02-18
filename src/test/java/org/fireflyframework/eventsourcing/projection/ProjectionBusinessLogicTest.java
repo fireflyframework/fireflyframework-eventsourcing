@@ -16,7 +16,7 @@
 
 package org.fireflyframework.eventsourcing.projection;
 
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.examples.AccountBalanceProjection;
 import org.fireflyframework.eventsourcing.examples.AccountBalanceProjectionService;
 import org.fireflyframework.eventsourcing.store.EventStore;
@@ -117,7 +117,7 @@ class ProjectionBusinessLogicTest {
     @Test
     void shouldProcessEventsInCorrectSequentialOrder() {
         // Given - Events that MUST be processed in exact order for correct balance
-        List<EventEnvelope> events = List.of(
+        List<StoredEventEnvelope> events = List.of(
                 createAccountCreatedEvent(testAccountId, "USD", 1L),
                 createMoneyDepositedEvent(testAccountId, new BigDecimal("100.00"), 2L),
                 createMoneyWithdrawnEvent(testAccountId, new BigDecimal("30.00"), 3L),
@@ -149,7 +149,7 @@ class ProjectionBusinessLogicTest {
     @Test
     void shouldHandleZeroAndNegativeBalances() {
         // Given - Events that result in negative balance (should be allowed for this business logic)
-        List<EventEnvelope> events = List.of(
+        List<StoredEventEnvelope> events = List.of(
                 createAccountCreatedEvent(testAccountId, "EUR", 1L),
                 createMoneyDepositedEvent(testAccountId, new BigDecimal("50.00"), 2L),
                 createMoneyWithdrawnEvent(testAccountId, new BigDecimal("75.00"), 3L), // Creates negative balance
@@ -174,7 +174,7 @@ class ProjectionBusinessLogicTest {
     @Test
     void shouldIgnoreUnrelatedEvents() {
         // Given - Mix of relevant and irrelevant events
-        List<EventEnvelope> events = List.of(
+        List<StoredEventEnvelope> events = List.of(
                 createAccountCreatedEvent(testAccountId, "USD", 1L),
                 createUnknownEvent(testAccountId, "SomeRandomEvent", 2L), // Should be ignored
                 createMoneyDepositedEvent(testAccountId, new BigDecimal("100.00"), 3L),
@@ -206,7 +206,7 @@ class ProjectionBusinessLogicTest {
         UUID account1 = UUID.randomUUID();
         UUID account2 = UUID.randomUUID();
         
-        List<EventEnvelope> events = List.of(
+        List<StoredEventEnvelope> events = List.of(
                 createAccountCreatedEvent(account1, "USD", 1L),
                 createAccountCreatedEvent(account2, "EUR", 2L),
                 createMoneyDepositedEvent(account1, new BigDecimal("100.00"), 3L),
@@ -240,7 +240,7 @@ class ProjectionBusinessLogicTest {
     @Test
     void shouldProcessFrameworkFunctionalityCorrectly() {
         // Given - Test core framework functionality rather than specific balance calculations
-        List<EventEnvelope> events = List.of(
+        List<StoredEventEnvelope> events = List.of(
                 createAccountCreatedEvent(testAccountId, "USD", 1L),
                 createMoneyDepositedEvent(testAccountId, new BigDecimal("100.00"), 2L),
                 createMoneyWithdrawnEvent(testAccountId, new BigDecimal("25.00"), 3L)
@@ -275,7 +275,7 @@ class ProjectionBusinessLogicTest {
     @Test
     void shouldTrackMetricsAccurately() {
         // Given
-        List<EventEnvelope> events = List.of(
+        List<StoredEventEnvelope> events = List.of(
                 createAccountCreatedEvent(testAccountId, "USD", 1L),
                 createMoneyDepositedEvent(testAccountId, new BigDecimal("100.00"), 2L),
                 createUnknownEvent(testAccountId, "IgnoredEvent", 3L) // This should fail processing
@@ -302,7 +302,7 @@ class ProjectionBusinessLogicTest {
     @Test
     void shouldProvideAccurateHealthInformation() {
         // Given - Process some events and update position
-        List<EventEnvelope> events = List.of(
+        List<StoredEventEnvelope> events = List.of(
                 createAccountCreatedEvent(testAccountId, "USD", 1L),
                 createMoneyDepositedEvent(testAccountId, new BigDecimal("100.00"), 2L)
         );
@@ -330,7 +330,7 @@ class ProjectionBusinessLogicTest {
     @Test
     void shouldResetProjectionCompletely() {
         // Given - Create projection data
-        List<EventEnvelope> events = List.of(
+        List<StoredEventEnvelope> events = List.of(
                 createAccountCreatedEvent(testAccountId, "USD", 1L),
                 createMoneyDepositedEvent(testAccountId, new BigDecimal("100.00"), 2L)
         );
@@ -368,8 +368,8 @@ class ProjectionBusinessLogicTest {
     
     // Helper methods to create properly structured events
     
-    private EventEnvelope createAccountCreatedEvent(UUID accountId, String currency, long globalSequence) {
-        return EventEnvelope.builder()
+    private StoredEventEnvelope createAccountCreatedEvent(UUID accountId, String currency, long globalSequence) {
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(new AccountBalanceProjectionService.AccountCreatedEvent(accountId, currency))
                 .aggregateId(accountId)
@@ -381,8 +381,8 @@ class ProjectionBusinessLogicTest {
                 .build();
     }
     
-    private EventEnvelope createMoneyDepositedEvent(UUID accountId, BigDecimal amount, long globalSequence) {
-        return EventEnvelope.builder()
+    private StoredEventEnvelope createMoneyDepositedEvent(UUID accountId, BigDecimal amount, long globalSequence) {
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(new AccountBalanceProjectionService.MoneyDepositedEvent(accountId, amount))
                 .aggregateId(accountId)
@@ -394,8 +394,8 @@ class ProjectionBusinessLogicTest {
                 .build();
     }
     
-    private EventEnvelope createMoneyWithdrawnEvent(UUID accountId, BigDecimal amount, long globalSequence) {
-        return EventEnvelope.builder()
+    private StoredEventEnvelope createMoneyWithdrawnEvent(UUID accountId, BigDecimal amount, long globalSequence) {
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(new AccountBalanceProjectionService.MoneyWithdrawnEvent(accountId, amount))
                 .aggregateId(accountId)
@@ -407,8 +407,8 @@ class ProjectionBusinessLogicTest {
                 .build();
     }
     
-    private EventEnvelope createMoneyTransferEvent(UUID sourceAccountId, UUID destAccountId, BigDecimal amount, long globalSequence) {
-        return EventEnvelope.builder()
+    private StoredEventEnvelope createMoneyTransferEvent(UUID sourceAccountId, UUID destAccountId, BigDecimal amount, long globalSequence) {
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(new AccountBalanceProjectionService.MoneyTransferredEvent(sourceAccountId, sourceAccountId, destAccountId, amount))
                 .aggregateId(sourceAccountId)
@@ -420,8 +420,8 @@ class ProjectionBusinessLogicTest {
                 .build();
     }
     
-    private EventEnvelope createUnknownEvent(UUID accountId, String eventType, long globalSequence) {
-        return EventEnvelope.builder()
+    private StoredEventEnvelope createUnknownEvent(UUID accountId, String eventType, long globalSequence) {
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(new org.fireflyframework.eventsourcing.domain.Event() {
                     @Override

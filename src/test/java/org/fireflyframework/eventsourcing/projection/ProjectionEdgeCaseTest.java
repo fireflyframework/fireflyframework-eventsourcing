@@ -16,7 +16,7 @@
 
 package org.fireflyframework.eventsourcing.projection;
 
-import org.fireflyframework.eventsourcing.domain.EventEnvelope;
+import org.fireflyframework.eventsourcing.domain.StoredEventEnvelope;
 import org.fireflyframework.eventsourcing.examples.AccountBalanceProjectionService;
 import org.fireflyframework.eventsourcing.store.EventStore;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -116,7 +116,7 @@ class ProjectionEdgeCaseTest {
     @Test
     void shouldHandleEmptyEventBatch() {
         // Given - Empty event list
-        List<EventEnvelope> emptyEvents = List.of();
+        List<StoredEventEnvelope> emptyEvents = List.of();
         
         // When
         StepVerifier.create(projectionService.processBatch(Flux.fromIterable(emptyEvents)))
@@ -131,7 +131,7 @@ class ProjectionEdgeCaseTest {
     @Test
     void shouldHandleDuplicateEventProcessing() {
         // Given - Same account created event processed twice (simulating replay)
-        EventEnvelope accountCreated = createAccountCreatedEvent(testAccountId, "USD", 1L);
+        StoredEventEnvelope accountCreated = createAccountCreatedEvent(testAccountId, "USD", 1L);
         
         // When - Process same event twice
         StepVerifier.create(projectionService.handleEvent(accountCreated))
@@ -153,7 +153,7 @@ class ProjectionEdgeCaseTest {
     void shouldHandleEventsForNonExistentAccount() {
         // Given - Deposit event for account that was never created
         UUID nonExistentAccount = UUID.randomUUID();
-        EventEnvelope depositEvent = createMoneyDepositedEvent(nonExistentAccount, new BigDecimal("100.00"), 1L);
+        StoredEventEnvelope depositEvent = createMoneyDepositedEvent(nonExistentAccount, new BigDecimal("100.00"), 1L);
         
         // When - Process deposit for non-existent account
         StepVerifier.create(projectionService.handleEvent(depositEvent))
@@ -167,7 +167,7 @@ class ProjectionEdgeCaseTest {
     @Test
     void shouldHandleEventsWithZeroAmounts() {
         // Given - Events with zero amounts
-        List<EventEnvelope> events = List.of(
+        List<StoredEventEnvelope> events = List.of(
                 createAccountCreatedEvent(testAccountId, "USD", 1L),
                 createMoneyDepositedEvent(testAccountId, BigDecimal.ZERO, 2L),
                 createMoneyWithdrawnEvent(testAccountId, BigDecimal.ZERO, 3L)
@@ -191,7 +191,7 @@ class ProjectionEdgeCaseTest {
     void shouldHandleEventsWithVeryLargeAmounts() {
         // Given - Events with very large amounts
         BigDecimal largeAmount = new BigDecimal("999999999999999.99");
-        List<EventEnvelope> events = List.of(
+        List<StoredEventEnvelope> events = List.of(
                 createAccountCreatedEvent(testAccountId, "USD", 1L),
                 createMoneyDepositedEvent(testAccountId, largeAmount, 2L)
         );
@@ -213,7 +213,7 @@ class ProjectionEdgeCaseTest {
     @Test
     void shouldHandleEventsWithPrecisionDecimals() {
         // Given - Events with high precision decimal amounts
-        List<EventEnvelope> events = List.of(
+        List<StoredEventEnvelope> events = List.of(
                 createAccountCreatedEvent(testAccountId, "USD", 1L),
                 createMoneyDepositedEvent(testAccountId, new BigDecimal("100.123456789"), 2L),
                 createMoneyWithdrawnEvent(testAccountId, new BigDecimal("25.987654321"), 3L)
@@ -236,7 +236,7 @@ class ProjectionEdgeCaseTest {
     @Test
     void shouldHandleOutOfOrderEventsByGlobalSequence() {
         // Given - Events with out-of-order global sequences (should still process all)
-        List<EventEnvelope> outOfOrderEvents = List.of(
+        List<StoredEventEnvelope> outOfOrderEvents = List.of(
                 createAccountCreatedEvent(testAccountId, "USD", 1L),
                 createMoneyDepositedEvent(testAccountId, new BigDecimal("50.00"), 5L), // Higher sequence
                 createMoneyDepositedEvent(testAccountId, new BigDecimal("25.00"), 3L), // Lower sequence
@@ -266,7 +266,7 @@ class ProjectionEdgeCaseTest {
     @Test
     void shouldHandleEventProcessingFailureGracefully() {
         // Given - Mix of valid and problematic events
-        List<EventEnvelope> mixedEvents = List.of(
+        List<StoredEventEnvelope> mixedEvents = List.of(
                 createAccountCreatedEvent(testAccountId, "USD", 1L),
                 createMoneyDepositedEvent(testAccountId, new BigDecimal("100.00"), 2L),
                 // Invalid event that might cause issues
@@ -289,7 +289,7 @@ class ProjectionEdgeCaseTest {
     void shouldHandleHighVolumeEventProcessing() throws InterruptedException {
         // Given - Large number of events
         int eventCount = 1000;
-        List<EventEnvelope> manyEvents = java.util.stream.IntStream.range(0, eventCount)
+        List<StoredEventEnvelope> manyEvents = java.util.stream.IntStream.range(0, eventCount)
                 .mapToObj(i -> {
                     if (i == 0) {
                         return createAccountCreatedEvent(testAccountId, "USD", i + 1L);
@@ -345,8 +345,8 @@ class ProjectionEdgeCaseTest {
     
     // Helper methods
     
-    private EventEnvelope createAccountCreatedEvent(UUID accountId, String currency, long globalSequence) {
-        return EventEnvelope.builder()
+    private StoredEventEnvelope createAccountCreatedEvent(UUID accountId, String currency, long globalSequence) {
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(new AccountBalanceProjectionService.AccountCreatedEvent(accountId, currency))
                 .aggregateId(accountId)
@@ -358,8 +358,8 @@ class ProjectionEdgeCaseTest {
                 .build();
     }
     
-    private EventEnvelope createMoneyDepositedEvent(UUID accountId, BigDecimal amount, long globalSequence) {
-        return EventEnvelope.builder()
+    private StoredEventEnvelope createMoneyDepositedEvent(UUID accountId, BigDecimal amount, long globalSequence) {
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(new AccountBalanceProjectionService.MoneyDepositedEvent(accountId, amount))
                 .aggregateId(accountId)
@@ -371,8 +371,8 @@ class ProjectionEdgeCaseTest {
                 .build();
     }
     
-    private EventEnvelope createMoneyWithdrawnEvent(UUID accountId, BigDecimal amount, long globalSequence) {
-        return EventEnvelope.builder()
+    private StoredEventEnvelope createMoneyWithdrawnEvent(UUID accountId, BigDecimal amount, long globalSequence) {
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(new AccountBalanceProjectionService.MoneyWithdrawnEvent(accountId, amount))
                 .aggregateId(accountId)
@@ -384,8 +384,8 @@ class ProjectionEdgeCaseTest {
                 .build();
     }
     
-    private EventEnvelope createEventWithNullData(UUID accountId, long globalSequence) {
-        return EventEnvelope.builder()
+    private StoredEventEnvelope createEventWithNullData(UUID accountId, long globalSequence) {
+        return StoredEventEnvelope.builder()
                 .eventId(UUID.randomUUID())
                 .event(new org.fireflyframework.eventsourcing.domain.Event() {
                     @Override

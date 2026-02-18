@@ -25,7 +25,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.transaction.ReactiveTransactionManager;
@@ -37,7 +37,7 @@ import org.springframework.transaction.reactive.TransactionalOperator;
  * This configuration class sets up event store implementations based on
  * the configured store type (R2DBC, MongoDB, etc.).
  */
-@Configuration
+@AutoConfiguration
 @ConditionalOnProperty(prefix = "firefly.eventsourcing.store", name = "enabled", havingValue = "true", matchIfMissing = true)
 @Slf4j
 public class EventStoreAutoConfiguration {

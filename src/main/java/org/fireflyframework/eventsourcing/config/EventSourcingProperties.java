@@ -19,6 +19,7 @@ package org.fireflyframework.eventsourcing.config;
 import org.fireflyframework.eda.annotation.PublisherType;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
 import java.util.Map;
@@ -49,6 +50,7 @@ import java.util.Map;
  * </pre>
  */
 @Data
+@Validated
 @ConfigurationProperties(prefix = "firefly.eventsourcing")
 public class EventSourcingProperties {
 

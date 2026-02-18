@@ -24,7 +24,7 @@ import org.fireflyframework.eventsourcing.snapshot.r2dbc.R2dbcSnapshotStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.r2dbc.core.DatabaseClient;
 
 /**
@@ -33,7 +33,7 @@ import org.springframework.r2dbc.core.DatabaseClient;
  * This configuration class sets up the R2DBC-backed snapshot store and a
  * configurable snapshot trigger that creates snapshots after every N events.
  */
-@Configuration
+@AutoConfiguration
 @ConditionalOnProperty(prefix = "firefly.eventsourcing.snapshot", name = "enabled", havingValue = "true", matchIfMissing = true)
 @Slf4j
 public class SnapshotAutoConfiguration {
