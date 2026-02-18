@@ -21,6 +21,6 @@ package org.fireflyframework.eventsourcing.tracing;
  * Micrometer Observation API with OpenTelemetry bridge. This class is intentionally
  * empty and will be removed in a future release.
  */
-@Deprecated(since = "26.02.04", forRemoval = true)
+@Deprecated(since = "26.02.05", forRemoval = true)
 public class OpenTelemetryConfiguration {
 }
