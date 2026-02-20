@@ -49,7 +49,7 @@ public class AccountLedgerReadModel { }
 <dependency>
     <groupId>org.fireflyframework</groupId>
     <artifactId>fireflyframework-eventsourcing</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>26.02.06</version>
 </dependency>
 
 <!-- Database driver -->
@@ -62,7 +62,7 @@ public class AccountLedgerReadModel { }
 ### Gradle
 
 ```kotlin
-implementation 'org.fireflyframework:fireflyframework-eventsourcing:1.0.0-SNAPSHOT'
+implementation 'org.fireflyframework:fireflyframework-eventsourcing:26.02.06'
 implementation 'org.postgresql:r2dbc-postgresql'
 ```
 
@@ -310,7 +310,7 @@ public class AccountLedgerService {
                 accountId,
                 "AccountLedger",
                 account.getUncommittedEvents(),
-                0L
+                -1L  // -1 for new aggregate
             )
             .doOnSuccess(stream -> account.markEventsAsCommitted())
             .thenReturn(account);

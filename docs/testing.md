@@ -63,7 +63,7 @@ class EventStoreTest {
         // Test implementation
         R2dbcEventStore eventStore = new R2dbcEventStore(/* ... */);
         StepVerifier.create(
-                eventStore.appendEvents(aggregateId, "Account", events, 0L)
+                eventStore.appendEvents(aggregateId, "Account", events, -1L)
             )
             .assertNext(stream -> {
                 assertEquals(3, stream.size());
@@ -132,7 +132,7 @@ class EventStoreIntegrationTest {
 
         // Persist events
         StepVerifier.create(
-                eventStore.appendEvents(aggregateId, "Account", events, 0L)
+                eventStore.appendEvents(aggregateId, "Account", events, -1L)
             )
             .assertNext(stream -> {
                 assertEquals(1, stream.size());
@@ -272,7 +272,7 @@ void shouldHandleHighThroughput() {
                 .flatMap(i -> {
                     UUID aggregateId = UUID.randomUUID();
                     List<Event> events = generateEvents(aggregateId, eventsPerAggregate);
-                    return eventStore.appendEvents(aggregateId, "Account", events, 0L);
+                    return eventStore.appendEvents(aggregateId, "Account", events, -1L);
                 })
                 .collectList()
         )
@@ -437,10 +437,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Set up JDK 25
+    - name: Set up JDK 21
       uses: actions/setup-java@v3
       with:
-        java-version: '25'
+        java-version: '21'
         distribution: 'temurin'
     
     - name: Run tests

@@ -36,7 +36,7 @@ CREATE TABLE events (
 
     -- Constraints
     UNIQUE(aggregate_id, aggregate_version),
-    CHECK (aggregate_version > 0),
+    CHECK (aggregate_version >= 0),
     CHECK (event_type <> ''),
     CHECK (aggregate_type <> '')
 );
@@ -62,6 +62,8 @@ CREATE TABLE events (
 | `causation_id` | VARCHAR(255) | YES | ID of the event that caused this event |
 | `event_size_bytes` | INTEGER | YES | Size of the event data in bytes (auto-calculated) |
 | `checksum` | VARCHAR(64) | YES | SHA-256 checksum of event data for integrity verification |
+
+The `global_sequence` column is auto-populated by PostgreSQL's BIGSERIAL type. The application's INSERT statement deliberately excludes this column, allowing the database to assign monotonically increasing values.
 
 ### Constraints
 
@@ -338,7 +340,7 @@ ORDER BY global_sequence ASC;
 ### 4. Get Aggregate Version
 
 ```sql
-SELECT COALESCE(MAX(aggregate_version), 0) as version
+SELECT COALESCE(MAX(aggregate_version), -1) as version
 FROM events 
 WHERE aggregate_id = ? 
   AND aggregate_type = ?;

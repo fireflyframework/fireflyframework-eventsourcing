@@ -158,9 +158,12 @@ The Firefly Event Sourcing Library follows the principles of Domain-Driven Desig
 - **Package**: `org.fireflyframework.eventsourcing.config`
 - **Components**:
   - `EventSourcingProperties`: Configuration properties
+  - `R2dbcBeansAutoConfiguration`: Imports Spring R2DBC infrastructure; loads before EventStoreAutoConfiguration
   - `EventSourcingAutoConfiguration`: Spring Boot auto-configuration
   - `EventStoreAutoConfiguration`: Event store setup
   - `SnapshotAutoConfiguration`: Snapshot system setup
+
+**Auto-Configuration Ordering:** `R2dbcBeansAutoConfiguration` loads first (via `@AutoConfigureBefore`) to ensure `DatabaseClient` and `R2dbcEntityTemplate` beans exist before `EventStoreAutoConfiguration` evaluates its `@ConditionalOnBean` conditions. Each configuration class independently registers `EventSourcingProperties` via `@EnableConfigurationProperties`.
 
 ## Data Flow
 
@@ -211,15 +214,14 @@ R2dbcEventStore.checkConcurrency()
       ▼ 4. Insert Events
 R2dbcEventStore.insertEvents()
       │
-      ▼ 5. Update Global Sequence
-GlobalSequenceCounter.increment()
-      │
-      ▼ 6. Commit Transaction
+      ▼ 5. Commit Transaction
 Transaction.commit()
       │
       ▼
 EventStream Response
 ```
+
+**Note:** The `global_sequence` column is auto-populated by PostgreSQL's `BIGSERIAL` type. The INSERT statement deliberately excludes this column, letting the database assign a monotonically increasing value for global event ordering.
 
 ### 3. Event Reconstruction Flow
 
@@ -312,7 +314,7 @@ public class CreateAccountHandler {
                 account.getId(),
                 "Account",
                 account.getUncommittedEvents(),
-                0L
+                -1L  // -1 = new aggregate (no prior events)
             )
         )
         .map(stream -> command.getAccountId());

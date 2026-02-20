@@ -26,9 +26,11 @@ firefly:
 firefly:
   eventsourcing:
     enabled: true              # Default: true
+    event-scan-packages: org.fireflyframework  # Default: "org.fireflyframework"
 ```
 
 - **`enabled`**: Master switch to enable/disable the entire event sourcing system
+- **`event-scan-packages`**: Comma-separated list of base packages for automatic event type scanning. The `EventTypeRegistry` scans these packages on startup to find `Event` implementations annotated with `@JsonTypeName` and registers them with Jackson's ObjectMapper for polymorphic deserialization.
 
 ## Event Store Configuration
 
@@ -331,12 +333,14 @@ The library validates configuration at startup:
 
 ## Auto-Configuration
 
-The library provides Spring Boot auto-configuration that:
+The library provides Spring Boot auto-configuration with the following bean creation chain:
 
-1. Loads configuration properties
-2. Creates required beans based on configuration
-3. Sets up conditional components
-4. Validates configuration consistency
+1. **R2dbcBeansAutoConfiguration** — Imports Spring R2DBC infrastructure (`DatabaseClient`, `R2dbcEntityTemplate`, `ConnectionFactory`)
+2. **EventStoreAutoConfiguration** — Creates `R2dbcEventStore` bean (requires R2DBC beans via `@ConditionalOnBean`, uses `@AutoConfigureAfter(R2dbcBeansAutoConfiguration.class)`)
+3. **SnapshotAutoConfiguration** — Creates snapshot beans when `firefly.eventsourcing.snapshot.enabled=true`
+4. **EventSourcingAutoConfiguration** — Creates publisher, transaction aspect, outbox, metrics, and health beans
+
+Each configuration class independently registers `EventSourcingProperties` via `@EnableConfigurationProperties` to avoid ordering dependencies.
 
 ### Conditional Configuration
 

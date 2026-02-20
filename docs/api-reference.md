@@ -566,8 +566,8 @@ public class AccountService {
         
         return eventStore.appendEvents(
                 id, "Account", 
-                account.getUncommittedEvents(), 
-                0L
+                account.getUncommittedEvents(),
+                -1L  // -1 for new aggregate
             )
             .doOnSuccess(stream -> account.markEventsAsCommitted())
             .thenReturn(account);

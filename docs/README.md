@@ -42,28 +42,14 @@ Welcome to the comprehensive documentation for the Firefly Event Sourcing Librar
 - 🛠️ **Rich Tooling** - Database migrations, testing utilities, examples
 - 🔄 **Event Replay** - Test new business rules against historical data
 
-## 📚 **Complete Documentation**
-- [**Implementing Aggregates**](./implementing-aggregates.md) - Build event-sourced aggregates
-- [**Working with Events**](./working-with-events.md) - Event design and implementation
-- [**Event Store Usage**](./event-store.md) - Persistence and querying
-- [**Snapshot Management**](./snapshots.md) - Performance optimization with snapshots
-
-### 🔧 Integration & Operations
-- [**fireflyframework-r2dbc Integration**](./r2dbc-integration.md) - Database integration details
-- [**EDA Integration**](./eda-integration.md) - Event publishing and messaging
-- [**Monitoring & Health**](./monitoring.md) - Production monitoring setup
-- [**Performance Tuning**](./performance.md) - Optimization strategies
-
-### 🧪 Development & Testing
-- [**Testing Guide**](./testing.md) - Testing strategies and examples
-- [**Migration Guide**](./migration.md) - Upgrading from previous versions
-- [**Troubleshooting**](./troubleshooting.md) - Common issues and solutions
-
-### 📋 Reference Materials
-- [**Database Schema**](./database-schema.md) - Complete schema definitions
-- [**Examples**](./examples/) - Working code examples
-- [**Best Practices**](./best-practices.md) - Production recommendations
-- [**FAQ**](./faq.md) - Frequently asked questions
+## Additional Documentation
+- [**Architecture Overview**](./architecture.md) - System design, components, and data flow
+- [**API Reference**](./api-reference.md) - Complete public API documentation
+- [**Database Schema**](./database-schema.md) - Table definitions, indexes, and queries
+- [**Configuration Reference**](./configuration.md) - All configuration properties
+- [**Testing Guide**](./testing.md) - Unit, integration, and performance testing
+- [**Optional Enhancements**](./optional-enhancements.md) - Circuit breakers, tracing, multi-tenancy
+- [**Examples**](./examples/) - Banking examples and developer experience patterns
 
 ## Library Overview
 
@@ -85,7 +71,7 @@ The Firefly Event Sourcing Library provides:
 <dependency>
     <groupId>org.fireflyframework</groupId>
     <artifactId>fireflyframework-eventsourcing</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>26.02.06</version>
 </dependency>
 ```
 
