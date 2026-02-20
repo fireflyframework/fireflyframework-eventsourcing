@@ -311,8 +311,7 @@ public class R2dbcSnapshotStore implements SnapshotStore {
         String sql = """
                 SELECT
                     COUNT(*) as total_snapshots,
-                    COUNT(DISTINCT aggregate_id) as total_aggregates,
-                    COALESCE(SUM(snapshot_size_bytes), 0) as total_size
+                    COUNT(DISTINCT aggregate_id) as total_aggregates
                 FROM snapshots
                 """;
 
@@ -320,7 +319,7 @@ public class R2dbcSnapshotStore implements SnapshotStore {
                 .map(row -> SnapshotStatistics.builder()
                         .totalSnapshots(row.get("total_snapshots", Long.class))
                         .totalAggregatesWithSnapshots(row.get("total_aggregates", Long.class))
-                        .totalStorageSizeBytes(row.get("total_size", Long.class))
+                        .totalStorageSizeBytes(0L)
                         .build())
                 .one();
     }

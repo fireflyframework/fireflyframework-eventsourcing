@@ -146,24 +146,9 @@ public class EventSourcingProperties {
         private Duration maxAge = Duration.ofDays(30);
 
         /**
-         * Whether to compress snapshots.
-         */
-        private boolean compression = true;
-
-        /**
          * Snapshot store type (same as event store, cache, etc.).
          */
         private String storeType = "same";
-
-        /**
-         * Whether to enable snapshot caching.
-         */
-        private boolean caching = true;
-
-        /**
-         * Cache TTL for snapshots.
-         */
-        private Duration cacheTtl = Duration.ofHours(1);
     }
 
     @Data

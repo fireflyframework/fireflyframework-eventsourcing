@@ -21,7 +21,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.fireflyframework.eventsourcing.domain.Event;
 import lombok.extern.slf4j.Slf4j;
@@ -84,49 +83,8 @@ public class EventSourcingJacksonConfiguration {
      */
     private void configurePolymorphicTypeHandling(ObjectMapper mapper) {
         mapper.addMixIn(Event.class, EventMixin.class);
-        
-        // Register common event types that might be used in tests or examples
-        // Applications should register their own event types via EventTypeRegistry
-        registerDefaultEventTypes(mapper);
-        
+
         log.debug("Configured polymorphic type handling for Event interface");
-    }
-    
-    /**
-     * Registers default event types for testing and examples.
-     * Production applications should register their domain-specific events.
-     */
-    private void registerDefaultEventTypes(ObjectMapper mapper) {
-        // These are registered for test compatibility
-        // Real applications should register their domain events
-        try {
-            // Try to register test events if they exist (for testing scenarios)
-            registerEventType(mapper, "test.account.created", 
-                "org.fireflyframework.eventsourcing.store.r2dbc.PostgreSqlEventStoreIntegrationTest$TestAccountCreatedEvent");
-            registerEventType(mapper, "test.money.withdrawn", 
-                "org.fireflyframework.eventsourcing.store.r2dbc.PostgreSqlEventStoreIntegrationTest$TestMoneyWithdrawnEvent");
-            registerEventType(mapper, "test.money.deposited", 
-                "org.fireflyframework.eventsourcing.store.r2dbc.PostgreSqlEventStoreIntegrationTest$TestMoneyDepositedEvent");
-                
-            // Register integration test events
-            registerEventType(mapper, "account.created", 
-                "org.fireflyframework.eventsourcing.EventSourcingIntegrationTest$AccountCreatedEvent");
-            registerEventType(mapper, "money.withdrawn", 
-                "org.fireflyframework.eventsourcing.EventSourcingIntegrationTest$MoneyWithdrawnEvent");
-            registerEventType(mapper, "money.deposited", 
-                "org.fireflyframework.eventsourcing.EventSourcingIntegrationTest$MoneyDepositedEvent");
-        } catch (ClassNotFoundException e) {
-            log.debug("Test event classes not found, skipping registration: {}", e.getMessage());
-        }
-    }
-    
-    /**
-     * Registers an event type with Jackson for proper polymorphic deserialization.
-     */
-    private void registerEventType(ObjectMapper mapper, String typeName, String className) throws ClassNotFoundException {
-        Class<?> eventClass = Class.forName(className);
-        mapper.registerSubtypes(new NamedType(eventClass, typeName));
-        log.debug("Registered event type: {} -> {}", typeName, className);
     }
     
     /**

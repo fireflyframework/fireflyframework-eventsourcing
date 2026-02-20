@@ -426,11 +426,11 @@ public class R2dbcEventStore implements EventStore {
 
     private List<StoredEventEnvelope> createEventEnvelopes(List<Event> events, String aggregateType,
                                                     long baseVersion, Map<String, Object> metadata) {
-        return events.stream()
-                .map(event -> {
-                    long version = baseVersion + events.indexOf(event) + 1;
+        return java.util.stream.IntStream.range(0, events.size())
+                .mapToObj(i -> {
+                    long version = baseVersion + i + 1;
                     // globalSequence is 0 here — the DB assigns the real value via BIGSERIAL
-                    return StoredEventEnvelope.of(event, aggregateType, version, 0L, metadata);
+                    return StoredEventEnvelope.of(events.get(i), aggregateType, version, 0L, metadata);
                 })
                 .toList();
     }
@@ -462,19 +462,6 @@ public class R2dbcEventStore implements EventStore {
         }
     }
     
-    /**
-     * Alternative method to save events using R2dbcEntityTemplate for better type safety.
-     */
-    private Mono<Void> saveEventsWithTemplate(List<StoredEventEnvelope> envelopes) {
-        List<EventEntity> entities = envelopes.stream()
-                .map(this::toEventEntity)
-                .toList();
-                
-        return Flux.fromIterable(entities)
-                .flatMap(entity -> entityTemplate.insert(entity))
-                .then();
-    }
-
     private Mono<Void> insertEvents(List<StoredEventEnvelope> envelopes) {
         String sql = """
                 INSERT INTO events (event_id, aggregate_id, aggregate_type, aggregate_version,
