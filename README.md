@@ -169,30 +169,30 @@ public class OrderService {
 
 ```
 +--------------------------------------------------+
-|                Application Layer                  |
-|  Services, Controllers, Command Handlers          |
+|                Application Layer                 |
+|  Services, Controllers, Command Handlers         |
 +--------------------------------------------------+
           |                          |
           v                          v
-+-------------------+    +---------------------+
-|   Domain Layer    |    | Infrastructure Layer |
-|                   |    |                      |
-| AggregateRoot     |    | R2dbcEventStore      |
-| Event interface   |    | R2dbcSnapshotStore   |
-| AbstractDomainEvent|   | EventTypeRegistry    |
-| @DomainEvent      |    | EventOutboxService   |
-| StoredEventEnvelope|   | EventSourcingPublisher|
-| EventStream       |    +---------------------+
-+-------------------+             |
-                                  v
-                        +-------------------+
-                        |  PostgreSQL (R2DBC)|
-                        |                   |
-                        | events            |
-                        | snapshots         |
-                        | event_outbox      |
-                        | projection_positions|
-                        +-------------------+
++----------------------+    +------------------------+
+|   Domain Layer       |    | Infrastructure Layer   |
+|                      |    |                        |
+| AggregateRoot        |    | R2dbcEventStore        |
+| Event interface      |    | R2dbcSnapshotStore     |
+| AbstractDomainEvent  |    | EventTypeRegistry      |
+| @DomainEvent         |    | EventOutboxService     |
+| StoredEventEnvelope  |    | EventSourcingPublisher |
+| EventStream          |    +------------------------+
++----------------------+             |
+                                     v
+                        +------------------------+
+                        | PostgreSQL (R2DBC)     |
+                        |                        |
+                        | events                 |
+                        | snapshots              |
+                        | event_outbox           |
+                        | projection_positions   |
+                        +------------------------+
 ```
 
 ## Database Schema

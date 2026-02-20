@@ -4,34 +4,34 @@
 
 ```
 +--------------------------------------------------+
-|                Application Layer                  |
-|  Services, Controllers, Command Handlers          |
+|                Application Layer                 |
+|  Services, Controllers, Command Handlers         |
 +--------------------------------------------------+
           |                          |
           v                          v
-+-------------------+    +---------------------+
-|   Domain Layer    |    | Infrastructure Layer |
-|                   |    |                      |
-| Event             |    | R2dbcEventStore      |
-| AbstractDomainEvent|   | R2dbcSnapshotStore   |
-| AggregateRoot     |    | EventTypeRegistry    |
-| @DomainEvent      |    | EventOutboxService   |
-| StoredEventEnvelope|   | EventSourcingPublisher|
-| EventStream       |    +---------------------+
-+-------------------+             |
-          |                       v
-          |             +---------------------+
-          |             | Transaction Layer    |
-          |             |                      |
-          |             | @EventSourcingTransactional
-          |             | EventSourcingTransactionalAspect
-          |             | TransactionalOperator|
-          |             +---------------------+
-          |                       |
-          v                       v
++----------------------+    +------------------------+
+|   Domain Layer       |    | Infrastructure Layer   |
+|                      |    |                        |
+| Event                |    | R2dbcEventStore        |
+| AbstractDomainEvent  |    | R2dbcSnapshotStore     |
+| AggregateRoot        |    | EventTypeRegistry      |
+| @DomainEvent         |    | EventOutboxService     |
+| StoredEventEnvelope  |    | EventSourcingPublisher |
+| EventStream          |    +------------------------+
++----------------------+             |
+          |                          v
+          |             +--------------------------------------+
+          |             | Transaction Layer                    |
+          |             |                                      |
+          |             | @EventSourcingTransactional          |
+          |             | EventSourcingTransactionalAspect     |
+          |             | TransactionalOperator                |
+          |             +--------------------------------------+
+          |                          |
+          v                          v
 +--------------------------------------------------+
-|              PostgreSQL (R2DBC)                    |
-|  events | snapshots | event_outbox | projections   |
+|              PostgreSQL (R2DBC)                  |
+|  events | snapshots | event_outbox | projections |
 +--------------------------------------------------+
 ```
 
