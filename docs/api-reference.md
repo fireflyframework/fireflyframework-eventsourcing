@@ -1,640 +1,441 @@
 # API Reference
 
-Complete API documentation for the Firefly Event Sourcing Library.
+## Event Interface
 
-## Core Interfaces
+`org.fireflyframework.eventsourcing.domain.Event`
 
-### Event
-
-Interface for domain events in the event sourcing system.
-
-**Package**: `org.fireflyframework.eventsourcing.domain`
+The root interface for all domain events. Decorated with `@JsonTypeInfo(use=Id.NAME, property="eventType")` for polymorphic serialization.
 
 ```java
 public interface Event {
-    String getEventType();
     UUID getAggregateId();
-    Instant getEventTimestamp();
-    Map<String, Object> getMetadata();
+
+    // Default: reads from @DomainEvent annotation; throws IllegalStateException if missing
+    default String getEventType() { ... }
+
+    // Default: returns Map.of()
+    default Map<String, Object> getMetadata() { ... }
+
+    // Default: returns Instant.now()
+    default Instant getEventTimestamp() { ... }
+
+    // Default: returns 1
+    default int getEventVersion() { ... }
 }
 ```
 
-#### Methods
+## AbstractDomainEvent
 
-| Method | Return Type | Description |
-|--------|------------|-------------|
-| `getEventType()` | `String` | Returns the type identifier of the event |
-| `getAggregateId()` | `UUID` | Returns the ID of the aggregate this event belongs to |
-| `getEventTimestamp()` | `Instant` | Returns when the event occurred |
-| `getMetadata()` | `Map<String, Object>` | Returns additional metadata for the event |
+`org.fireflyframework.eventsourcing.domain.AbstractDomainEvent`
 
-#### Default Implementation
+Abstract base class implementing `Event` with Lombok `@SuperBuilder`, `@Getter`, `@NoArgsConstructor`, `@AllArgsConstructor`.
 
-Events typically provide default implementations for `getEventTimestamp()` and `getMetadata()`:
+**Fields:**
 
-```java
-@Override
-public Instant getEventTimestamp() {
-    return Instant.now();
-}
+| Field | Type | Default |
+|-------|------|---------|
+| `aggregateId` | `UUID` | `null` |
+| `eventTimestamp` | `Instant` | Lazy-initialized to `Instant.now()` |
+| `metadata` | `Map<String, Object>` | Lazy-initialized to `new HashMap<>()` |
+| `eventVersion` | `int` | `0` (returns `1` via getter if `<= 0`) |
 
-@Override  
-public Map<String, Object> getMetadata() {
-    return Map.of();
-}
-```
+**Instance methods:**
 
-#### Example Implementation
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `addMetadata(String key, Object value)` | `AbstractDomainEvent` | Adds a metadata entry, returns `this` |
+| `addMetadata(Map<String, Object>)` | `AbstractDomainEvent` | Adds multiple entries, returns `this` |
 
-```java
-@JsonTypeName("account.created")
-public record AccountCreatedEvent(
-    UUID aggregateId,
-    String accountNumber,
-    BigDecimal initialBalance
-) implements Event {
-    
-    @Override
-    public String getEventType() {
-        return "account.created";
-    }
-    
-    @Override
-    public UUID getAggregateId() {
-        return aggregateId;
-    }
-}
-```
+**Builder helpers** (available on all subclass builders):
 
-### EventStore
+| Builder Method | Metadata Key |
+|---------------|-------------|
+| `.correlationId(String)` | `"correlationId"` |
+| `.causationId(String)` | `"causationId"` |
+| `.userId(String)` | `"userId"` |
+| `.source(String)` | `"source"` |
+| `.addMetadata(String, Object)` | Custom key |
 
-Main interface for event persistence and retrieval.
+## AggregateRoot
 
-**Package**: `org.fireflyframework.eventsourcing.store`
+`org.fireflyframework.eventsourcing.aggregate.AggregateRoot`
 
-```java
-public interface EventStore {
-    // Event persistence
-    Mono<EventStream> appendEvents(UUID aggregateId, String aggregateType, 
-                                  List<Event> events, long expectedVersion, 
-                                  Map<String, Object> metadata);
-    
-    Mono<EventStream> appendEvents(UUID aggregateId, String aggregateType,
-                                  List<Event> events, long expectedVersion);
-    
-    // Event retrieval
-    Mono<EventStream> loadEventStream(UUID aggregateId, String aggregateType);
-    
-    Mono<EventStream> loadEventStream(UUID aggregateId, String aggregateType, 
-                                     long fromVersion);
-    
-    Mono<EventStream> loadEventStream(UUID aggregateId, String aggregateType,
-                                     long fromVersion, long toVersion);
-    
-    // Aggregate information
-    Mono<Long> getAggregateVersion(UUID aggregateId, String aggregateType);
-    
-    Mono<Boolean> aggregateExists(UUID aggregateId, String aggregateType);
-    
-    // Event streaming
-    Flux<EventEnvelope> streamAllEvents();
-    
-    Flux<EventEnvelope> streamAllEvents(long fromSequence);
-    
-    Flux<EventEnvelope> streamEventsByType(List<String> eventTypes);
-    
-    Flux<EventEnvelope> streamEventsByAggregateType(List<String> aggregateTypes);
-    
-    Flux<EventEnvelope> streamEventsByTimeRange(Instant from, Instant to);
-    
-    Flux<EventEnvelope> streamEventsByMetadata(Map<String, Object> metadataCriteria);
-    
-    // Utility methods
-    Mono<Long> getCurrentGlobalSequence();
-    
-    Mono<Boolean> isHealthy();
-    
-    Mono<EventStoreStatistics> getStatistics();
-}
-```
+Abstract base class for event-sourced aggregates. Annotated with `@Getter` and `@Slf4j`.
 
-#### Method Details
-
-##### appendEvents
-
-```java
-Mono<EventStream> appendEvents(UUID aggregateId, String aggregateType, 
-                              List<Event> events, long expectedVersion,
-                              Map<String, Object> metadata)
-```
-
-Appends new events to an aggregate's event stream with metadata.
-
-**Parameters:**
-- `aggregateId`: Unique identifier of the aggregate
-- `aggregateType`: Type name of the aggregate (e.g., "Account")  
-- `events`: List of events to append
-- `expectedVersion`: Expected current version for optimistic concurrency control
-- `metadata`: Additional metadata to attach to all events
-
-**Returns:** `Mono<EventStream>` - The updated event stream
-
-**Throws:**
-- `ConcurrencyException` - If expectedVersion doesn't match current version
-- `EventStoreException` - If the operation fails
-
-##### loadEventStream
-
-```java
-Mono<EventStream> loadEventStream(UUID aggregateId, String aggregateType)
-```
-
-Loads the complete event stream for an aggregate.
-
-**Parameters:**
-- `aggregateId`: Unique identifier of the aggregate
-- `aggregateType`: Type name of the aggregate
-
-**Returns:** `Mono<EventStream>` - The event stream, or empty if aggregate doesn't exist
-
-##### streamAllEvents
-
-```java
-Flux<EventEnvelope> streamAllEvents(long fromSequence)
-```
-
-Streams events from a specific global sequence number.
-
-**Parameters:**
-- `fromSequence`: Global sequence number to start from (inclusive)
-
-**Returns:** `Flux<EventEnvelope>` - Stream of event envelopes
-
-### AggregateRoot
-
-Base class for event-sourced aggregates.
-
-**Package**: `org.fireflyframework.eventsourcing.aggregate`
-
-```java
-public abstract class AggregateRoot {
-    // Constructor
-    protected AggregateRoot(UUID id, String aggregateType);
-    
-    // Event application
-    protected void applyChange(Event event);
-    
-    public void loadFromHistory(List<EventEnvelope> events);
-    
-    // Event management
-    public List<Event> getUncommittedEvents();
-    
-    public void markEventsAsCommitted();
-    
-    public boolean hasUncommittedEvents();
-    
-    public int getUncommittedEventCount();
-    
-    // Aggregate information
-    public UUID getId();
-    
-    public String getAggregateType();
-    
-    public long getVersion();
-    
-    // State management
-    protected void markAsDeleted();
-    
-    public boolean isDeleted();
-}
-```
-
-#### Method Details
-
-##### Constructor
+**Constructor:**
 
 ```java
 protected AggregateRoot(UUID id, String aggregateType)
 ```
 
-Creates a new aggregate with the specified ID and type.
+- `id` must not be null
+- `aggregateType` must not be null or blank
+- Sets `version = -1L`
 
-**Parameters:**
-- `id`: Unique identifier for the aggregate (cannot be null)
-- `aggregateType`: Type name for the aggregate (cannot be null or empty)
+**Fields:**
 
-**Throws:**
-- `IllegalArgumentException` - If id is null or aggregateType is null/empty
+| Field | Type | Access | Initial |
+|-------|------|--------|---------|
+| `id` | `UUID` | public (getter) | Constructor param |
+| `aggregateType` | `String` | public (getter) | Constructor param |
+| `version` | `long` | package (getter via Lombok) | `-1` |
+| `uncommittedEvents` | `List<Event>` | public (unmodifiable getter) | Empty list |
+| `deleted` | `boolean` | public (getter) | `false` |
 
-##### applyChange
+**Methods:**
 
-```java
-protected void applyChange(Event event)
-```
+| Method | Visibility | Signature | Description |
+|--------|-----------|-----------|-------------|
+| `applyChange` | `protected` | `void applyChange(Event event)` | Validates aggregate ID match, adds to uncommitted list, calls event handler, increments version |
+| `loadFromHistory` | `public` | `void loadFromHistory(List<StoredEventEnvelope> events)` | Validates all events match aggregate, applies each, sets version to last envelope's version, clears uncommitted |
+| `getUncommittedEvents` | `public` | `List<Event> getUncommittedEvents()` | Returns unmodifiable view |
+| `markEventsAsCommitted` | `public` | `void markEventsAsCommitted()` | Clears uncommitted list |
+| `hasUncommittedEvents` | `public` | `boolean hasUncommittedEvents()` | True if uncommitted list is non-empty |
+| `getUncommittedEventCount` | `public` | `int getUncommittedEventCount()` | Size of uncommitted list |
+| `getCurrentVersion` | `public` | `long getCurrentVersion()` | Returns current version |
+| `setCurrentVersion` | `protected` | `void setCurrentVersion(long version)` | For snapshot restoration only |
+| `markAsDeleted` | `protected` | `void markAsDeleted()` | Sets `deleted = true` |
 
-Applies a new event to the aggregate.
+**Version semantics:**
 
-**Process:**
-1. Adds event to uncommitted events list
-2. Calls the appropriate event handler method
-3. Increments the version number
+- New aggregate (no events): version = `-1`
+- After first `applyChange`: version = `0`
+- After Nth `applyChange`: version = `N-1`
 
-**Parameters:**
-- `event`: The event to apply (cannot be null)
+When calling `appendEvents` for a **new** aggregate, pass `expectedVersion = -1L`.
 
-**Throws:**
-- `IllegalArgumentException` - If event is null or has wrong aggregate ID
-- `EventHandlerException` - If no event handler is found
+## EventStore Interface
 
-##### loadFromHistory
+`org.fireflyframework.eventsourcing.store.EventStore`
 
-```java
-public void loadFromHistory(List<EventEnvelope> events)
-```
-
-Reconstructs aggregate state from historical events.
-
-**Process:**
-1. Validates all events belong to this aggregate
-2. Applies each event in sequence
-3. Sets version to match the last event
-4. Clears uncommitted events
-
-**Parameters:**
-- `events`: List of historical event envelopes
-
-**Throws:**
-- `IllegalArgumentException` - If events belong to different aggregate
-
-#### Event Handlers
-
-Event handler methods must follow this pattern:
+All methods return Project Reactor types (`Mono` or `Flux`).
 
 ```java
-private void on(EventType event) {
-    // Update aggregate state based on event
-}
+// Append events with metadata
+Mono<EventStream> appendEvents(UUID aggregateId, String aggregateType,
+                                List<Event> events, long expectedVersion,
+                                Map<String, Object> metadata);
+
+// Append events without metadata (delegates to above with Map.of())
+default Mono<EventStream> appendEvents(UUID aggregateId, String aggregateType,
+                                        List<Event> events, long expectedVersion);
+
+// Load complete event stream
+Mono<EventStream> loadEventStream(UUID aggregateId, String aggregateType);
+
+// Load events from a specific version (inclusive)
+Mono<EventStream> loadEventStream(UUID aggregateId, String aggregateType, long fromVersion);
+
+// Load events in a version range (both inclusive)
+Mono<EventStream> loadEventStream(UUID aggregateId, String aggregateType,
+                                   long fromVersion, long toVersion);
+
+// Get current aggregate version (-1 if not found, per R2dbcEventStore)
+Mono<Long> getAggregateVersion(UUID aggregateId, String aggregateType);
+
+// Check if aggregate exists (version >= 0)
+Mono<Boolean> aggregateExists(UUID aggregateId, String aggregateType);
+
+// Stream all events from global sequence 0
+Flux<StoredEventEnvelope> streamAllEvents();
+
+// Stream events from a global sequence (inclusive)
+Flux<StoredEventEnvelope> streamAllEvents(long fromSequence);
+
+// Stream events by type
+Flux<StoredEventEnvelope> streamEventsByType(List<String> eventTypes);
+
+// Stream events by aggregate type
+Flux<StoredEventEnvelope> streamEventsByAggregateType(List<String> aggregateTypes);
+
+// Stream events in a time range (both inclusive)
+Flux<StoredEventEnvelope> streamEventsByTimeRange(Instant from, Instant to);
+
+// Stream events matching metadata criteria (PostgreSQL JSONB containment)
+Flux<StoredEventEnvelope> streamEventsByMetadata(Map<String, Object> metadataCriteria);
+
+// Get current max global sequence (0 if empty)
+Mono<Long> getCurrentGlobalSequence();
+
+// Health check
+Mono<Boolean> isHealthy();
+
+// Statistics (total events, total aggregates, current global sequence)
+Mono<EventStoreStatistics> getStatistics();
 ```
 
-**Rules:**
-- Method name must be "on"
-- Must be private
-- Must take single parameter of the event type
-- Should only update aggregate state (no side effects)
+## SnapshotStore Interface
 
-**Example:**
+`org.fireflyframework.eventsourcing.snapshot.SnapshotStore`
 
 ```java
-public class Account extends AggregateRoot {
-    private BigDecimal balance;
-    
-    private void on(MoneyDepositedEvent event) {
-        this.balance = this.balance.add(event.getAmount());
-    }
-}
+Mono<Void> saveSnapshot(Snapshot snapshot);
+Mono<Snapshot> loadLatestSnapshot(UUID aggregateId, String snapshotType);
+Mono<Snapshot> loadSnapshotAtOrBeforeVersion(UUID aggregateId, String snapshotType, long maxVersion);
+Mono<Snapshot> loadSnapshotAtVersion(UUID aggregateId, String snapshotType, long version);
+Mono<Boolean> snapshotExists(UUID aggregateId, String snapshotType);
+Mono<Long> getLatestSnapshotVersion(UUID aggregateId, String snapshotType);
+Mono<Void> deleteSnapshot(UUID aggregateId, String snapshotType, long version);
+Mono<Void> deleteAllSnapshots(UUID aggregateId, String snapshotType);
+Mono<Long> deleteSnapshotsOlderThan(Instant olderThan);
+default Mono<Long> deleteSnapshotsOlderThan(int days);
+Mono<Long> keepLatestSnapshots(UUID aggregateId, String snapshotType, int keepCount);
+Flux<Snapshot> listSnapshots(UUID aggregateId, String snapshotType);
+Flux<Snapshot> listSnapshots(UUID aggregateId, String snapshotType, long fromVersion, long toVersion);
+Mono<Long> countSnapshots(UUID aggregateId, String snapshotType);
+Mono<SnapshotStatistics> getStatistics();
+Mono<Boolean> isHealthy();
+Mono<Void> optimize();
 ```
 
-### EventEnvelope
+## Snapshot Interface
 
-Wrapper for events with persistence metadata.
-
-**Package**: `org.fireflyframework.eventsourcing.domain`
+`org.fireflyframework.eventsourcing.snapshot.Snapshot`
 
 ```java
-@Data
-@Builder
-public class EventEnvelope {
-    private final UUID eventId;
-    private final Event event;
-    private final UUID aggregateId;
-    private final String aggregateType;
-    private final long aggregateVersion;
-    private final long globalSequence;
-    private final String eventType;
-    private final Instant createdAt;
-    private final Map<String, Object> metadata;
-    
-    // Factory methods
-    public static EventEnvelope of(Event event, String aggregateType, 
-                                  long aggregateVersion, long globalSequence,
-                                  Map<String, Object> metadata);
-    
-    public static EventEnvelope of(Event event, String aggregateType,
-                                  long aggregateVersion, long globalSequence);
-    
-    // Utility methods
-    public Object getMetadataValue(String key);
-    
-    public <T> T getMetadataValue(String key, Class<T> type);
-    
-    public String getCorrelationId();
-    
-    public String getCausationId();
-    
-    public String getUserId();
-}
+UUID getAggregateId();
+String getSnapshotType();
+long getVersion();
+Instant getCreatedAt();
+default int getSnapshotVersion() { return 1; }
+default String getReason() { return null; }
+default Long getSizeBytes() { return null; }
+default boolean isOlderThan(int days) { ... }
+default boolean isForVersion(long version) { ... }
+default boolean isNewerThan(long version) { ... }
 ```
 
-#### Properties
+## AbstractSnapshot
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `eventId` | `UUID` | Unique identifier for this event envelope |
-| `event` | `Event` | The wrapped domain event |
-| `aggregateId` | `UUID` | ID of the aggregate this event belongs to |
-| `aggregateType` | `String` | Type of the aggregate |
-| `aggregateVersion` | `long` | Version number within the aggregate stream |
-| `globalSequence` | `long` | Global sequence number across all events |
-| `eventType` | `String` | Type of the domain event |
-| `createdAt` | `Instant` | When the event was persisted |
-| `metadata` | `Map<String, Object>` | Additional metadata |
+`org.fireflyframework.eventsourcing.snapshot.AbstractSnapshot`
 
-### EventStream
+Implements `Snapshot`. Provides fields for `aggregateId`, `version`, `createdAt`, `reason`, and `sizeBytes`.
 
-Collection of events for an aggregate.
+Constructors:
+- `AbstractSnapshot(UUID aggregateId, long version, Instant createdAt)`
+- `AbstractSnapshot(UUID aggregateId, long version, Instant createdAt, String reason, Long sizeBytes)`
 
-**Package**: `org.fireflyframework.eventsourcing.domain`
+Subclasses must implement `getSnapshotType()`.
+
+## StoredEventEnvelope
+
+`org.fireflyframework.eventsourcing.domain.StoredEventEnvelope`
+
+Wraps a domain event with storage metadata. Uses Lombok `@Data`, `@Builder`, `@Jacksonized`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `eventId` | `UUID` | Unique envelope ID |
+| `event` | `Event` | The domain event |
+| `aggregateId` | `UUID` | Denormalized for query performance |
+| `aggregateType` | `String` | Aggregate type |
+| `aggregateVersion` | `long` | Version within aggregate stream |
+| `globalSequence` | `long` | Global ordering number |
+| `eventType` | `String` | Event type identifier |
+| `createdAt` | `Instant` | Persistence timestamp |
+| `metadata` | `Map<String, Object>` | Additional metadata (default: `Map.of()`) |
+
+**Factory methods:**
 
 ```java
-@Data
-public class EventStream {
-    private final UUID aggregateId;
-    private final String aggregateType;
-    private final List<EventEnvelope> events;
-    private final long currentVersion;
-    private final long fromVersion;
-    
-    // Factory methods
-    public static EventStream of(UUID aggregateId, String aggregateType, 
-                                List<EventEnvelope> events);
-    
-    public static EventStream empty(UUID aggregateId, String aggregateType);
-    
-    // Query methods
-    public boolean isEmpty();
-    
-    public int size();
-    
-    public EventEnvelope getFirstEvent();
-    
-    public EventEnvelope getLastEvent();
-    
-    public EventEnvelope getEventAt(int index);
-    
-    // Filtering
-    public EventStream filterByType(String eventType);
-    
-    public EventStream filterByVersion(long fromVersion, long toVersion);
-    
-    public EventStream filterByTimeRange(Instant from, Instant to);
-    
-    // Statistics
-    public Map<String, Long> getEventTypeCounts();
-}
+static StoredEventEnvelope of(Event event, String aggregateType,
+                               long aggregateVersion, long globalSequence,
+                               Map<String, Object> metadata);
+static StoredEventEnvelope of(Event event, String aggregateType,
+                               long aggregateVersion, long globalSequence);
 ```
 
-## Configuration Classes
-
-### EventSourcingProperties
-
-Main configuration properties class.
-
-**Package**: `org.fireflyframework.eventsourcing.config`
+**Convenience methods:**
 
 ```java
-@Data
-@ConfigurationProperties(prefix = "firefly.eventsourcing")
-public class EventSourcingProperties {
-    private boolean enabled = true;
-    private EventStore store = new EventStore();
-    private Snapshot snapshot = new Snapshot();
-    private Publisher publisher = new Publisher();
-    private Performance performance = new Performance();
-    
-    // Nested configuration classes
-    public static class EventStore { /* ... */ }
-    public static class Snapshot { /* ... */ }
-    public static class Publisher { /* ... */ }
-    public static class Performance { /* ... */ }
-}
+Object getMetadataValue(String key);
+<T> T getMetadataValue(String key, Class<T> type);
+String getCorrelationId();    // reads metadata key "correlationId"
+String getCausationId();      // reads metadata key "causationId"
+String getUserId();           // reads metadata key "userId"
 ```
 
-## Exception Classes
+## EventStream
 
-### EventStoreException
+`org.fireflyframework.eventsourcing.domain.EventStream`
 
-Base exception for event store operations.
+Uses Lombok `@Data`, `@Builder`.
 
-**Package**: `org.fireflyframework.eventsourcing.store`
+| Field | Type | Default |
+|-------|------|---------|
+| `aggregateId` | `UUID` | |
+| `aggregateType` | `String` | |
+| `currentVersion` | `long` | |
+| `fromVersion` | `long` | `0L` |
+| `events` | `List<StoredEventEnvelope>` | |
+
+**Methods:**
 
 ```java
-public class EventStoreException extends RuntimeException {
-    public EventStoreException(String message);
-    public EventStoreException(String message, Throwable cause);
-}
+boolean isEmpty();
+int size();
+StoredEventEnvelope getFirstEvent();
+StoredEventEnvelope getLastEvent();
+List<StoredEventEnvelope> getEventsFromVersion(long fromVersion);
+List<StoredEventEnvelope> getEventsToVersion(long toVersion);
+List<StoredEventEnvelope> getEventsInRange(long fromVersion, long toVersion);
+
+static EventStream empty(UUID aggregateId, String aggregateType);
+static EventStream of(UUID aggregateId, String aggregateType, List<StoredEventEnvelope> events);
 ```
 
-### ConcurrencyException
+## @DomainEvent Annotation
 
-Exception thrown when optimistic concurrency control fails.
+`org.fireflyframework.eventsourcing.annotation.DomainEvent`
+
+Target: `TYPE`. Retention: `RUNTIME`.
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `value` | `String` | (required) | Event type ID, aliased to `@JsonTypeName.value` |
+| `description` | `String` | `""` | Documentation |
+| `version` | `int` | `1` | Schema version |
+| `publishable` | `boolean` | `true` | Publish to external systems |
+| `tags` | `String[]` | `{}` | Categorization tags |
+
+## @EventSourcingTransactional Annotation
+
+`org.fireflyframework.eventsourcing.annotation.EventSourcingTransactional`
+
+Target: `METHOD`, `TYPE`. Retention: `RUNTIME`.
+
+| Attribute | Type | Default |
+|-----------|------|---------|
+| `propagation` | `Propagation` | `REQUIRED` |
+| `publishEvents` | `boolean` | `true` |
+| `retryOnConcurrencyConflict` | `boolean` | `false` |
+| `maxRetries` | `int` | `3` |
+| `retryDelay` | `long` | `100` (ms) |
+| `timeout` | `int` | `-1` (seconds, -1 = none) |
+| `readOnly` | `boolean` | `false` |
+| `isolation` | `Isolation` | `DEFAULT` |
+| `rollbackFor` | `Class<? extends Throwable>[]` | `{}` |
+| `rollbackForClassName` | `String[]` | `{}` |
+| `noRollbackFor` | `Class<? extends Throwable>[]` | `{}` |
+| `noRollbackForClassName` | `String[]` | `{}` |
+| `transactionManager` | `String` | `""` |
+
+**Propagation enum values:** `REQUIRED`, `REQUIRES_NEW`, `MANDATORY`, `NEVER`, `SUPPORTS`, `NOT_SUPPORTED`
+
+**Isolation enum values:** `DEFAULT`, `READ_UNCOMMITTED`, `READ_COMMITTED`, `REPEATABLE_READ`, `SERIALIZABLE`
+
+## EventTypeRegistry
+
+`org.fireflyframework.eventsourcing.config.EventTypeRegistry`
 
 ```java
-public class ConcurrencyException extends EventStoreException {
-    private final UUID aggregateId;
-    private final String aggregateType;
-    private final long expectedVersion;
-    private final long actualVersion;
-    
-    public ConcurrencyException(UUID aggregateId, String aggregateType,
-                               long expectedVersion, long actualVersion);
-    
-    // Getters for exception details
-    public UUID getAggregateId();
-    public String getAggregateType();
-    public long getExpectedVersion();
-    public long getActualVersion();
-}
+// Triggered at ApplicationReadyEvent -- scans classpath automatically
+@EventListener(ApplicationReadyEvent.class)
+void registerEventTypes();
+
+// Manual registration (reads @JsonTypeName annotation)
+void registerEventType(Class<? extends Event> eventClass);
+
+// Manual registration with custom type name
+void registerEventType(Class<? extends Event> eventClass, String typeName);
+
+// Get all registered type names
+Set<String> getRegisteredEventTypes();
 ```
 
-### EventHandlerException
+Scan packages are read from `firefly.eventsourcing.event-scan-packages` (default: `"org.fireflyframework"`).
 
-Exception thrown when event handler invocation fails.
+## EventOutboxService
 
-**Package**: `org.fireflyframework.eventsourcing.aggregate`
+`org.fireflyframework.eventsourcing.outbox.EventOutboxService`
 
 ```java
-public class EventHandlerException extends RuntimeException {
-    public EventHandlerException(String message);
-    public EventHandlerException(String message, Throwable cause);
-}
+Mono<EventOutboxEntity> saveToOutbox(StoredEventEnvelope envelope);
+Mono<EventOutboxEntity> saveToOutbox(StoredEventEnvelope envelope, int priority, int maxRetries);
+Mono<Long> processPendingEntries(int batchSize);
+Mono<Long> processRetryEntries(int batchSize);
+Flux<EventOutboxEntity> getDeadLetterEntries();
+Mono<Long> cleanupCompletedEntries(int olderThanDays);
+Mono<OutboxStatistics> getStatistics();
 ```
 
-## Statistics and Monitoring
+`OutboxStatistics` is a record: `(long pendingCount, long processingCount, long completedCount, long failedCount, long deadLetterCount)`
 
-### EventStoreStatistics
+## ProjectionService
 
-Statistics about the event store.
+`org.fireflyframework.eventsourcing.projection.ProjectionService<T>`
 
-**Package**: `org.fireflyframework.eventsourcing.store`
+Abstract class for building read model projections. Constructor takes `MeterRegistry`.
+
+| Method | Visibility | Returns | Description |
+|--------|-----------|---------|-------------|
+| `handleEvent(StoredEventEnvelope)` | `public abstract` | `Mono<Void>` | Process a single event |
+| `getCurrentPosition()` | `public abstract` | `Mono<Long>` | Current global sequence position |
+| `updatePosition(long)` | `public abstract` | `Mono<Void>` | Save new position |
+| `getProjectionName()` | `public abstract` | `String` | Projection identifier |
+| `clearProjectionData()` | `protected abstract` | `Mono<Void>` | Clear read model data |
+| `getLatestGlobalSequenceFromEventStore()` | `protected abstract` | `Mono<Long>` | For health checks |
+| `processBatch(Flux<StoredEventEnvelope>)` | `public` | `Mono<Void>` | Process batch with atomic position update |
+| `processIndividually(Flux<StoredEventEnvelope>)` | `public` | `Mono<Void>` | Process events one by one |
+| `resetProjection()` | `public` | `Mono<Void>` | Clear data and reset position to 0 |
+| `getHealth(long)` | `public` | `Mono<ProjectionHealth>` | Health with lag calculation |
+| `checkHealth()` | `public` | `Mono<ProjectionHealth>` | Full health check |
+| `onProjectionReset()` | `protected` | `Mono<Void>` | Hook after reset (default: empty) |
+| `getMaxAllowedLag()` | `protected` | `long` | Max lag for healthy status (default: 1000) |
+| `handleEventType(envelope, type, handler)` | `protected` | `Mono<Void>` | Helper for type filtering |
+
+## EventUpcaster Interface
+
+`org.fireflyframework.eventsourcing.upcasting.EventUpcaster`
 
 ```java
-@Data
-@Builder
-public class EventStoreStatistics {
-    private final long totalEvents;
-    private final long totalAggregates;
-    private final long currentGlobalSequence;
-    private final Map<String, Long> eventTypeCounts;
-    private final Map<String, Long> aggregateTypeCounts;
-}
+boolean canUpcast(String eventType, int eventVersion);
+Event upcast(Event event);
+default int getTargetVersion() { return 2; }
+default int getPriority() { return 0; }   // higher = runs first
 ```
 
-## Publisher Integration
+## TenantContext
 
-### EventSourcingPublisher
+`org.fireflyframework.eventsourcing.multitenancy.TenantContext`
 
-Publishes events to external message systems.
-
-**Package**: `org.fireflyframework.eventsourcing.publisher`
+Static utility for reactive tenant isolation.
 
 ```java
-@Component
-public class EventSourcingPublisher {
-    public Mono<Void> publishEvent(EventEnvelope envelope);
-    
-    public Mono<Void> publishEvents(List<EventEnvelope> envelopes);
-    
-    public Flux<Void> publishEventStream(Flux<EventEnvelope> eventStream);
-    
-    // Configuration methods
-    public boolean isEnabled();
-    
-    public PublisherType getPublisherType();
-}
+static Mono<String> getCurrentTenantId();          // reads from Reactor context, default "default"
+static String getCurrentTenantIdOrDefault();        // blocking version
+static Function<Context, Context> withTenantId(String tenantId);  // for .contextWrite(...)
+static Mono<Boolean> hasTenantId();
+static Function<Context, Context> clear();
+static String getDefaultTenant();                   // returns "default"
 ```
 
-## Snapshot Support
+## EventSourcingLoggingContext
 
-### Snapshot
+`org.fireflyframework.eventsourcing.logging.EventSourcingLoggingContext`
 
-Interface for aggregate snapshots.
+Utility class (`@UtilityClass`) for MDC context management. All methods are static.
 
-**Package**: `org.fireflyframework.eventsourcing.snapshot`
+**MDC Keys (16 total):**
 
-```java
-public interface Snapshot {
-    UUID getAggregateId();
-    String getAggregateType();
-    long getVersion();
-    String getSnapshotType();
-    Instant getCreatedAt();
-    <T> T getData(Class<T> type);
-}
-```
+`correlationId`, `causationId`, `aggregateId`, `aggregateType`, `eventType`, `tenantId`, `userId`, `operation`, `duration`, `version`, `globalSequence`, `outboxId`, `status`, `retryCount`, `priority`, `destination`
 
-### SnapshotStore
+**Key methods:**
 
-Interface for snapshot persistence.
-
-```java
-public interface SnapshotStore {
-    Mono<Void> saveSnapshot(Snapshot snapshot);
-    
-    Mono<Snapshot> loadSnapshot(UUID aggregateId, String aggregateType);
-    
-    Mono<Snapshot> loadSnapshotAtVersion(UUID aggregateId, String aggregateType, 
-                                        long version);
-    
-    Mono<Void> deleteSnapshots(UUID aggregateId, String aggregateType);
-    
-    Flux<Snapshot> listSnapshots(UUID aggregateId, String aggregateType);
-}
-```
-
-## Usage Examples
-
-### Basic Event Store Usage
-
-```java
-@Service
-public class AccountService {
-    private final EventStore eventStore;
-    
-    public Mono<Account> createAccount(String accountNumber, BigDecimal balance) {
-        UUID id = UUID.randomUUID();
-        Account account = new Account(id, accountNumber, balance);
-        
-        return eventStore.appendEvents(
-                id, "Account", 
-                account.getUncommittedEvents(),
-                -1L  // -1 for new aggregate
-            )
-            .doOnSuccess(stream -> account.markEventsAsCommitted())
-            .thenReturn(account);
-    }
-    
-    public Mono<Account> loadAccount(UUID id) {
-        return eventStore.loadEventStream(id, "Account")
-                .map(stream -> {
-                    Account account = new Account(id);
-                    account.loadFromHistory(stream.getEvents());
-                    return account;
-                });
-    }
-}
-```
-
-### Event Streaming
-
-```java
-@Component
-public class EventProjector {
-    private final EventStore eventStore;
-    
-    public Flux<ProjectionUpdate> projectEvents(long fromSequence) {
-        return eventStore.streamAllEvents(fromSequence)
-                .filter(envelope -> isRelevantEvent(envelope))
-                .map(this::createProjectionUpdate)
-                .onErrorContinue(this::handleProjectionError);
-    }
-}
-```
-
-### Custom Event Implementation
-
-```java
-@JsonTypeName("money.transferred")
-public record MoneyTransferredEvent(
-    UUID aggregateId,
-    UUID toAccountId,
-    BigDecimal amount,
-    String reference,
-    Instant timestamp
-) implements Event {
-    
-    @Override
-    public String getEventType() {
-        return "money.transferred";
-    }
-    
-    @Override
-    public UUID getAggregateId() {
-        return aggregateId;
-    }
-    
-    @Override
-    public Instant getEventTimestamp() {
-        return timestamp;
-    }
-    
-    @Override
-    public Map<String, Object> getMetadata() {
-        return Map.of(
-            "targetAccount", toAccountId.toString(),
-            "source", "transfer-service"
-        );
-    }
-}
-```
-
-This API reference covers all public interfaces and classes in the Firefly Event Sourcing Library. For implementation examples, see the [Examples](./examples/) directory.
+| Method | Description |
+|--------|-------------|
+| `setCorrelationId(String)` | Set correlation ID |
+| `setCausationId(String)` | Set causation ID |
+| `getOrGenerateCorrelationId()` | Get or auto-generate UUID |
+| `setAggregateContext(UUID, String)` | Set aggregate ID and type |
+| `setAggregateContext(UUID, String, long)` | Set aggregate ID, type, and version |
+| `setEventType(String)` | Set event type |
+| `setTenantId(String)` | Set tenant ID |
+| `setUserId(String)` | Set user ID |
+| `setOperation(String)` | Set operation name |
+| `setDuration(long)` | Set duration in ms |
+| `clearAll()` | Remove all 16 keys |
+| `clearAggregateContext()` | Remove aggregate ID, type, version |
+| `clearOutboxContext()` | Remove outbox ID, status, retry count, priority |
+| `withMdcContext(Mono<T>)` | Write current MDC to Reactor context for propagation |
+| `mdcContextPropagation()` | Returns a function that wraps Monos with MDC context |

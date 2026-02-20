@@ -1,526 +1,315 @@
 # Database Schema
 
-Complete database schema reference for the Firefly Event Sourcing Library.
+The library ships with 8 Flyway migrations under `classpath:db/migration`. All migrations are idempotent where possible (`IF NOT EXISTS`, `CREATE OR REPLACE`).
 
-## Overview
+## Migration Overview
 
-The event sourcing library uses a simple but effective database schema designed for high performance, data integrity, and scalability. The schema is optimized for the event sourcing pattern with proper indexing and constraints.
+| Version | File | Purpose |
+|---------|------|---------|
+| V1 | `V1__Create_Events_Table.sql` | Core events table with BIGSERIAL global sequence |
+| V2 | `V2__Create_Snapshots_Table.sql` | Snapshots table with composite PK |
+| V3 | `V3__Create_Event_Outbox_Table.sql` | Transactional outbox for reliable publishing |
+| V4 | `V4__Enhance_Events_Table_For_Production.sql` | Audit columns, triggers, views, materialized view |
+| V5 | `V5__Enhance_Snapshots_Table_For_Production.sql` | Audit columns, triggers, views, cleanup function |
+| V6 | `V6__Enhance_Event_Outbox_For_Production.sql` | Priority, partitioning, retry triggers, functions |
+| V7 | `V7__Create_Account_Ledger_Read_Model.sql` | Example read model for AccountLedger aggregate |
+| V8 | `V8__Create_Projection_Tables.sql` | Projection position tracking and example balance projection |
 
-## Events Table
-
-The primary table for storing all events in the system.
-
-### PostgreSQL Schema
-
-```sql
-CREATE TABLE events (
-    -- Core event fields
-    event_id UUID PRIMARY KEY,
-    aggregate_id UUID NOT NULL,
-    aggregate_type VARCHAR(255) NOT NULL,
-    aggregate_version BIGINT NOT NULL,
-    global_sequence BIGSERIAL UNIQUE,
-    event_type VARCHAR(255) NOT NULL,
-    event_data JSONB NOT NULL,
-    metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-    -- Production enhancements (V4 migration)
-    updated_at TIMESTAMP WITH TIME ZONE,
-    created_by VARCHAR(255),
-    tenant_id VARCHAR(255),
-    correlation_id VARCHAR(255),
-    causation_id VARCHAR(255),
-    event_size_bytes INTEGER,
-    checksum VARCHAR(64),
-
-    -- Constraints
-    UNIQUE(aggregate_id, aggregate_version),
-    CHECK (aggregate_version >= 0),
-    CHECK (event_type <> ''),
-    CHECK (aggregate_type <> '')
-);
-```
-
-### Column Details
-
-| Column | Type | Null | Description |
-|--------|------|------|-------------|
-| `event_id` | UUID | NO | Unique identifier for each event envelope |
-| `aggregate_id` | UUID | NO | Identifier of the aggregate this event belongs to |
-| `aggregate_type` | VARCHAR(255) | NO | Type of the aggregate (e.g., "Account", "Order") |
-| `aggregate_version` | BIGINT | NO | Version number within the aggregate's event stream |
-| `global_sequence` | BIGSERIAL | NO | Global ordering sequence across all events |
-| `event_type` | VARCHAR(255) | NO | Type identifier of the domain event |
-| `event_data` | JSONB | NO | Serialized event data in JSON format |
-| `metadata` | JSONB | YES | Additional metadata (correlation IDs, etc.) |
-| `created_at` | TIMESTAMP WITH TIME ZONE | NO | When the event was persisted to the store |
-| `updated_at` | TIMESTAMP WITH TIME ZONE | YES | When the event was last updated (for corrections/migrations) |
-| `created_by` | VARCHAR(255) | YES | User or service that created the event |
-| `tenant_id` | VARCHAR(255) | YES | Tenant identifier for multi-tenancy support |
-| `correlation_id` | VARCHAR(255) | YES | Correlation ID for distributed tracing |
-| `causation_id` | VARCHAR(255) | YES | ID of the event that caused this event |
-| `event_size_bytes` | INTEGER | YES | Size of the event data in bytes (auto-calculated) |
-| `checksum` | VARCHAR(64) | YES | SHA-256 checksum of event data for integrity verification |
-
-The `global_sequence` column is auto-populated by PostgreSQL's BIGSERIAL type. The application's INSERT statement deliberately excludes this column, allowing the database to assign monotonically increasing values.
-
-### Constraints
-
-1. **Primary Key**: `event_id` ensures each event envelope is unique
-2. **Unique Constraint**: `(aggregate_id, aggregate_version)` ensures version uniqueness per aggregate
-3. **Unique Constraint**: `global_sequence` ensures global ordering
-4. **Not Null**: Critical fields cannot be null for data integrity
-
-### Indexes
-
-```sql
--- Primary key index (automatically created)
--- CREATE UNIQUE INDEX events_pkey ON events(event_id);
-
--- Core indexes (V1 migration)
-CREATE INDEX idx_events_aggregate ON events(aggregate_id, aggregate_type);
-CREATE INDEX idx_events_global_sequence ON events(global_sequence);
-CREATE INDEX idx_events_type ON events(event_type);
-CREATE INDEX idx_events_created_at ON events(created_at);
-
--- Production indexes (V4 migration)
-CREATE INDEX idx_events_correlation_id ON events(correlation_id) WHERE correlation_id IS NOT NULL;
-CREATE INDEX idx_events_causation_id ON events(causation_id) WHERE causation_id IS NOT NULL;
-CREATE INDEX idx_events_tenant_id ON events(tenant_id) WHERE tenant_id IS NOT NULL;
-CREATE INDEX idx_events_created_by ON events(created_by) WHERE created_by IS NOT NULL;
-
--- Composite indexes for common query patterns
-CREATE INDEX idx_events_aggregate_type_created ON events(aggregate_type, created_at DESC);
-CREATE INDEX idx_events_type_created ON events(event_type, created_at DESC);
-CREATE INDEX idx_events_tenant_aggregate ON events(tenant_id, aggregate_id) WHERE tenant_id IS NOT NULL;
-
--- JSONB indexes for metadata queries
-CREATE INDEX idx_events_metadata_gin ON events USING GIN (metadata jsonb_path_ops);
-
--- Partial indexes for performance
-CREATE INDEX idx_events_recent ON events(created_at DESC) WHERE created_at > NOW() - INTERVAL '30 days';
-CREATE INDEX idx_events_aggregate_recent ON events(aggregate_id, aggregate_version DESC) WHERE created_at > NOW() - INTERVAL '90 days';
-```
-
-### Triggers
-
-```sql
--- Auto-update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_events_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_events_updated_at
-    BEFORE UPDATE ON events
-    FOR EACH ROW
-    EXECUTE FUNCTION update_events_updated_at();
-
--- Auto-calculate event size
-CREATE OR REPLACE FUNCTION calculate_event_size()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.event_size_bytes = LENGTH(NEW.event_data::text);
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_calculate_event_size
-    BEFORE INSERT OR UPDATE ON events
-    FOR EACH ROW
-    EXECUTE FUNCTION calculate_event_size();
-```
-
-### Views
-
-```sql
--- Event statistics by type
-CREATE OR REPLACE VIEW v_event_statistics AS
-SELECT
-    aggregate_type,
-    event_type,
-    COUNT(*) as event_count,
-    AVG(event_size_bytes) as avg_size_bytes,
-    MAX(event_size_bytes) as max_size_bytes,
-    MIN(created_at) as first_event_at,
-    MAX(created_at) as last_event_at,
-    COUNT(DISTINCT aggregate_id) as unique_aggregates
-FROM events
-GROUP BY aggregate_type, event_type;
-
--- Recent events (last 24 hours)
-CREATE OR REPLACE VIEW v_recent_events AS
-SELECT
-    event_id,
-    aggregate_id,
-    aggregate_type,
-    event_type,
-    aggregate_version,
-    global_sequence,
-    created_at,
-    correlation_id,
-    tenant_id
-FROM events
-WHERE created_at > NOW() - INTERVAL '24 hours'
-ORDER BY created_at DESC;
-
--- Aggregate summary (materialized view)
-CREATE MATERIALIZED VIEW mv_aggregate_summary AS
-SELECT
-    aggregate_id,
-    aggregate_type,
-    MAX(aggregate_version) as current_version,
-    COUNT(*) as total_events,
-    MIN(created_at) as created_at,
-    MAX(created_at) as last_modified_at,
-    SUM(event_size_bytes) as total_size_bytes,
-    tenant_id
-FROM events
-GROUP BY aggregate_id, aggregate_type, tenant_id;
-
-CREATE UNIQUE INDEX idx_mv_aggregate_summary_pk ON mv_aggregate_summary(aggregate_id, aggregate_type);
-```
-
-## Database Variations
-
-### MySQL Schema
+## V1: events Table
 
 ```sql
 CREATE TABLE events (
-    event_id CHAR(36) PRIMARY KEY,
-    aggregate_id CHAR(36) NOT NULL,
-    aggregate_type VARCHAR(255) NOT NULL,
-    aggregate_version BIGINT NOT NULL,
-    global_sequence BIGINT NOT NULL AUTO_INCREMENT UNIQUE,
-    event_type VARCHAR(255) NOT NULL,
-    event_data JSON NOT NULL,
-    metadata JSON,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_aggregate_version (aggregate_id, aggregate_version),
-    KEY idx_aggregate (aggregate_id, aggregate_type),
-    KEY idx_global_sequence (global_sequence),
-    KEY idx_event_type (event_type),
-    KEY idx_created_at (created_at)
+    event_id            UUID PRIMARY KEY,
+    aggregate_id        UUID NOT NULL,
+    aggregate_type      VARCHAR(255) NOT NULL,
+    aggregate_version   BIGINT NOT NULL,
+    global_sequence     BIGSERIAL UNIQUE,
+    event_type          VARCHAR(255) NOT NULL,
+    event_data          TEXT NOT NULL,
+    metadata            TEXT,
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT unique_aggregate_version UNIQUE(aggregate_id, aggregate_version)
 );
 ```
 
-### H2 Schema (for testing)
+Key points:
+- `event_data` and `metadata` are **TEXT**, not JSONB. This makes the store database-agnostic.
+- `global_sequence` is **BIGSERIAL** -- the database auto-assigns it. The R2dbcEventStore INSERT statement **excludes** `global_sequence`.
+- The `UNIQUE(aggregate_id, aggregate_version)` constraint enforces optimistic concurrency at the database level.
 
-```sql
-CREATE TABLE events (
-    event_id UUID PRIMARY KEY,
-    aggregate_id UUID NOT NULL,
-    aggregate_type VARCHAR(255) NOT NULL,
-    aggregate_version BIGINT NOT NULL,
-    global_sequence BIGINT AUTO_INCREMENT UNIQUE,
-    event_type VARCHAR(255) NOT NULL,
-    event_data CLOB NOT NULL,
-    metadata CLOB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(aggregate_id, aggregate_version)
-);
+**V1 Indexes:**
 
-CREATE INDEX idx_events_aggregate ON events(aggregate_id, aggregate_type);
-CREATE INDEX idx_events_global_sequence ON events(global_sequence);
-CREATE INDEX idx_events_type ON events(event_type);
-CREATE INDEX idx_events_created_at ON events(created_at);
-```
+| Index | Columns |
+|-------|---------|
+| `idx_events_aggregate` | `(aggregate_id, aggregate_type)` |
+| `idx_events_global_sequence` | `(global_sequence)` |
+| `idx_events_type` | `(event_type)` |
+| `idx_events_created_at` | `(created_at)` |
+| `idx_events_aggregate_version` | `(aggregate_id, aggregate_version)` |
 
-## Snapshots Table (Optional)
-
-For performance optimization, snapshots can be stored in a separate table.
-
-### PostgreSQL Schema
+## V2: snapshots Table
 
 ```sql
 CREATE TABLE snapshots (
-    snapshot_id UUID PRIMARY KEY,
-    aggregate_id UUID NOT NULL,
-    aggregate_type VARCHAR(255) NOT NULL,
-    version BIGINT NOT NULL,
-    snapshot_type VARCHAR(255) NOT NULL,
-    snapshot_data JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(aggregate_id, version)
-);
-
--- Indexes
-CREATE INDEX idx_snapshots_aggregate ON snapshots(aggregate_id, aggregate_type);
-CREATE INDEX idx_snapshots_version ON snapshots(aggregate_id, version DESC);
-CREATE INDEX idx_snapshots_created_at ON snapshots(created_at);
-```
-
-### Snapshot Columns
-
-| Column | Type | Null | Description |
-|--------|------|------|-------------|
-| `snapshot_id` | UUID | NO | Unique identifier for the snapshot |
-| `aggregate_id` | UUID | NO | Identifier of the aggregate |
-| `aggregate_type` | VARCHAR(255) | NO | Type of the aggregate |
-| `version` | BIGINT | NO | Version when the snapshot was taken |
-| `snapshot_type` | VARCHAR(255) | NO | Type of the snapshot |
-| `snapshot_data` | JSONB | NO | Serialized aggregate state |
-| `created_at` | TIMESTAMP WITH TIME ZONE | NO | When the snapshot was created |
-
-## Sample Data
-
-### Events Table Sample
-
-```sql
-INSERT INTO events VALUES 
-(
-    '550e8400-e29b-41d4-a716-446655440000',
-    'acc-123e4567-e89b-12d3-a456-426614174000',
-    'Account',
-    1,
-    1001,
-    'account.created',
-    '{"aggregateId":"acc-123e4567-e89b-12d3-a456-426614174000","accountNumber":"ACC001","initialBalance":1000.00}',
-    '{"correlationId":"corr-001","userId":"user-123","source":"banking-service"}',
-    '2025-01-15 10:30:00+00'
-),
-(
-    '550e8400-e29b-41d4-a716-446655440001',
-    'acc-123e4567-e89b-12d3-a456-426614174000',
-    'Account',
-    2,
-    1002,
-    'money.deposited',
-    '{"aggregateId":"acc-123e4567-e89b-12d3-a456-426614174000","amount":250.00,"reference":"DEP-001"}',
-    '{"correlationId":"corr-002","userId":"user-123","source":"banking-service"}',
-    '2025-01-15 10:35:00+00'
+    aggregate_id        UUID NOT NULL,
+    aggregate_type      VARCHAR(255) NOT NULL,
+    aggregate_version   BIGINT NOT NULL,
+    snapshot_data       TEXT NOT NULL,
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (aggregate_id, aggregate_type)
 );
 ```
 
-## Query Patterns
+Key points:
+- The PK is `(aggregate_id, aggregate_type)` -- only **one snapshot per aggregate** is stored.
+- Saving a snapshot performs an UPSERT (INSERT ON CONFLICT UPDATE).
 
-### 1. Load Event Stream for Aggregate
+**V2 Indexes:**
+
+| Index | Columns |
+|-------|---------|
+| `idx_snapshots_version` | `(aggregate_version)` |
+| `idx_snapshots_created_at` | `(created_at)` |
+| `idx_snapshots_type` | `(aggregate_type)` |
+
+## V3: event_outbox Table
 
 ```sql
-SELECT event_id, aggregate_id, aggregate_type, aggregate_version, 
-       global_sequence, event_type, event_data, metadata, created_at
-FROM events 
-WHERE aggregate_id = ? 
-  AND aggregate_type = ?
-ORDER BY aggregate_version ASC;
+CREATE TABLE event_outbox (
+    outbox_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    aggregate_id    UUID NOT NULL,
+    aggregate_type  VARCHAR(255) NOT NULL,
+    event_type      VARCHAR(255) NOT NULL,
+    event_data      TEXT NOT NULL,
+    metadata        TEXT,
+    status          VARCHAR(50) DEFAULT 'PENDING' NOT NULL,
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    processed_at    TIMESTAMP WITH TIME ZONE,
+    retry_count     INTEGER DEFAULT 0 NOT NULL,
+    last_error      TEXT,
+    next_retry_at   TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT valid_status CHECK (status IN ('PENDING','PROCESSING','COMPLETED','FAILED','CANCELLED'))
+);
 ```
 
-**Index Used**: `idx_events_aggregate`
+**V3 Indexes:**
 
-### 2. Load Events from Specific Version
+| Index | Columns | Condition |
+|-------|---------|-----------|
+| `idx_outbox_status` | `(status)` | |
+| `idx_outbox_created_at` | `(created_at)` | |
+| `idx_outbox_next_retry` | `(next_retry_at)` | `WHERE status = 'FAILED'` |
+| `idx_outbox_aggregate` | `(aggregate_id, aggregate_type)` | |
+| `idx_outbox_event_type` | `(event_type)` | |
+| `idx_outbox_pending` | `(created_at)` | `WHERE status = 'PENDING'` |
+
+## V4: Events Production Enhancements
+
+Adds columns to the `events` table:
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| `updated_at` | `TIMESTAMP WITH TIME ZONE` | Updated timestamp |
+| `created_by` | `VARCHAR(255)` | User or service that created the event |
+| `tenant_id` | `VARCHAR(255)` | Multi-tenancy support |
+| `correlation_id` | `VARCHAR(255)` | Distributed tracing |
+| `causation_id` | `VARCHAR(255)` | Causation chain |
+| `event_size_bytes` | `INTEGER` | Calculated by trigger |
+| `checksum` | `VARCHAR(64)` | SHA-256 integrity check |
+
+**V4 Constraints:**
+
+- `chk_aggregate_version_positive`: `aggregate_version >= 0`
+- `chk_event_type_not_empty`: `event_type <> ''`
+- `chk_aggregate_type_not_empty`: `aggregate_type <> ''`
+
+**V4 Triggers:**
+
+| Trigger | Fires | Function | Purpose |
+|---------|-------|----------|---------|
+| `trigger_events_updated_at` | BEFORE UPDATE | `update_events_updated_at()` | Auto-set `updated_at` |
+| `trigger_calculate_event_size` | BEFORE INSERT OR UPDATE | `calculate_event_size()` | Calculate `event_size_bytes = LENGTH(event_data)` |
+
+**V4 Views:**
+
+| View | Type | Purpose |
+|------|------|---------|
+| `v_event_statistics` | VIEW | Counts, sizes by aggregate_type and event_type |
+| `v_recent_events` | VIEW | Events from last 24 hours |
+| `mv_aggregate_summary` | MATERIALIZED VIEW | Per-aggregate stats (version, event count, size) |
+
+**V4 Functions:**
+
+- `refresh_aggregate_summary()` -- refreshes the materialized view concurrently
+
+## V5: Snapshots Production Enhancements
+
+Adds columns to the `snapshots` table:
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| `updated_at` | `TIMESTAMP WITH TIME ZONE` | Updated timestamp |
+| `created_by` | `VARCHAR(255)` | Creator |
+| `tenant_id` | `VARCHAR(255)` | Multi-tenancy |
+| `snapshot_size_bytes` | `INTEGER` | Calculated by trigger |
+| `checksum` | `VARCHAR(64)` | Integrity check |
+| `compression_type` | `VARCHAR(50)` | GZIP, LZ4, ZSTD, NONE |
+| `is_compressed` | `BOOLEAN` | Default FALSE |
+
+**V5 Constraints:**
+
+- `chk_snapshot_version_positive`: `aggregate_version > 0`
+- `chk_snapshot_type_not_empty`: `aggregate_type <> ''`
+- `chk_compression_type_valid`: NULL or one of GZIP, LZ4, ZSTD, NONE
+
+**V5 Triggers:**
+
+| Trigger | Function | Purpose |
+|---------|----------|---------|
+| `trigger_snapshots_updated_at` | `update_snapshots_updated_at()` | Auto-set `updated_at` |
+| `trigger_calculate_snapshot_size` | `calculate_snapshot_size()` | Calculate `snapshot_size_bytes` |
+
+**V5 Views and Functions:**
+
+- `v_snapshot_statistics` -- aggregated stats by aggregate type
+- `cleanup_old_snapshots(keep_count INTEGER DEFAULT 3)` -- keeps only latest N snapshots per aggregate
+
+## V6: Event Outbox Production Enhancements
+
+Adds columns to the `event_outbox` table:
+
+| Column | Type | Default | Purpose |
+|--------|------|---------|---------|
+| `updated_at` | `TIMESTAMP WITH TIME ZONE` | | Updated timestamp |
+| `tenant_id` | `VARCHAR(255)` | | Multi-tenancy |
+| `correlation_id` | `VARCHAR(255)` | | Tracing |
+| `priority` | `INTEGER` | `5` | Processing priority (1=highest, 10=lowest) |
+| `max_retries` | `INTEGER` | `3` | Maximum retry attempts |
+| `partition_key` | `VARCHAR(255)` | | Ordered processing key |
+
+**V6 Constraints:**
+
+- `chk_outbox_priority_range`: `priority BETWEEN 1 AND 10`
+- `chk_outbox_max_retries_positive`: `max_retries >= 0`
+- `chk_outbox_retry_count_valid`: `retry_count >= 0 AND retry_count <= max_retries + 10`
+
+**V6 Triggers:**
+
+| Trigger | Function | Purpose |
+|---------|----------|---------|
+| `trigger_outbox_updated_at` | `update_outbox_updated_at()` | Auto-set `updated_at` |
+| `trigger_calculate_next_retry` | `calculate_next_retry()` | Exponential backoff: `2^retry_count` minutes |
+
+**V6 Views:**
+
+- `v_outbox_statistics` -- counts by status and event type
+- `v_outbox_failed_entries` -- entries that exceeded max retries
+
+**V6 Functions:**
+
+| Function | Purpose |
+|----------|---------|
+| `get_pending_outbox_entries(batch_size, lock_timeout)` | SELECT FOR UPDATE SKIP LOCKED with priority ordering |
+| `mark_outbox_completed(entry_id)` | Set status=COMPLETED |
+| `mark_outbox_failed(entry_id, error_message)` | Set status=FAILED, increment retry |
+| `cleanup_completed_outbox(older_than_days)` | Delete old completed entries |
+
+## V7: Account Ledger Read Model
 
 ```sql
-SELECT event_id, aggregate_id, aggregate_type, aggregate_version, 
-       global_sequence, event_type, event_data, metadata, created_at
-FROM events 
-WHERE aggregate_id = ? 
-  AND aggregate_type = ? 
-  AND aggregate_version >= ?
-ORDER BY aggregate_version ASC;
+CREATE TABLE account_ledger_read_model (
+    account_id          UUID PRIMARY KEY,
+    account_number      VARCHAR(50) NOT NULL UNIQUE,
+    account_type        VARCHAR(50) NOT NULL,
+    customer_id         UUID NOT NULL,
+    balance             DECIMAL(19,4) NOT NULL DEFAULT 0.0000,
+    currency            VARCHAR(3) NOT NULL DEFAULT 'USD',
+    frozen              BOOLEAN NOT NULL DEFAULT FALSE,
+    closed              BOOLEAN NOT NULL DEFAULT FALSE,
+    status              VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+    opened_at           TIMESTAMP WITH TIME ZONE NOT NULL,
+    closed_at           TIMESTAMP WITH TIME ZONE,
+    last_transaction_at TIMESTAMP WITH TIME ZONE,
+    version             BIGINT NOT NULL DEFAULT 0,
+    last_updated        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT valid_status CHECK (status IN ('ACTIVE','FROZEN','CLOSED'))
+);
 ```
 
-**Index Used**: `idx_events_aggregate_version`
+This is the example read model for the AccountLedger aggregate used in the tutorial.
 
-### 3. Stream All Events from Sequence
-
-```sql
-SELECT event_id, aggregate_id, aggregate_type, aggregate_version, 
-       global_sequence, event_type, event_data, metadata, created_at
-FROM events 
-WHERE global_sequence >= ?
-ORDER BY global_sequence ASC;
-```
-
-**Index Used**: `idx_events_global_sequence`
-
-### 4. Get Aggregate Version
+## V8: Projection Tables
 
 ```sql
-SELECT COALESCE(MAX(aggregate_version), -1) as version
-FROM events 
-WHERE aggregate_id = ? 
-  AND aggregate_type = ?;
-```
-
-**Index Used**: `idx_events_aggregate`
-
-### 5. Stream Events by Type
-
-```sql
-SELECT event_id, aggregate_id, aggregate_type, aggregate_version, 
-       global_sequence, event_type, event_data, metadata, created_at
-FROM events 
-WHERE event_type IN (?, ?, ?)
-ORDER BY global_sequence ASC;
-```
-
-**Index Used**: `idx_events_type` + `idx_events_global_sequence`
-
-### 6. Stream Events by Time Range
-
-```sql
-SELECT event_id, aggregate_id, aggregate_type, aggregate_version, 
-       global_sequence, event_type, event_data, metadata, created_at
-FROM events 
-WHERE created_at BETWEEN ? AND ?
-ORDER BY created_at ASC;
-```
-
-**Index Used**: `idx_events_created_at`
-
-## Performance Considerations
-
-### 1. Index Usage
-
-- **Primary Queries**: Always use indexed columns in WHERE clauses
-- **Composite Indexes**: Order columns by selectivity (most selective first)
-- **Covering Indexes**: Consider including frequently selected columns
-
-### 2. Partitioning Strategy
-
-For high-volume systems, consider table partitioning:
-
-```sql
--- Partition by aggregate_type
-CREATE TABLE events_account PARTITION OF events 
-FOR VALUES IN ('Account');
-
-CREATE TABLE events_order PARTITION OF events 
-FOR VALUES IN ('Order');
-
--- Or partition by time
-CREATE TABLE events_2025_01 PARTITION OF events 
-FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
-```
-
-### 3. Maintenance
-
-```sql
--- Regular statistics update
-ANALYZE events;
-
--- Vacuum for PostgreSQL
-VACUUM ANALYZE events;
-
--- Monitor index usage
-SELECT schemaname, tablename, indexname, idx_scan, idx_tup_read, idx_tup_fetch 
-FROM pg_stat_user_indexes 
-WHERE tablename = 'events';
-```
-
-## Migration Scripts
-
-### Version 1.0.0 - Initial Schema
-
-```sql
--- Initial events table
-CREATE TABLE events (
-    event_id UUID PRIMARY KEY,
-    aggregate_id UUID NOT NULL,
-    aggregate_type VARCHAR(255) NOT NULL,
-    aggregate_version BIGINT NOT NULL,
-    global_sequence BIGSERIAL UNIQUE,
-    event_type VARCHAR(255) NOT NULL,
-    event_data JSONB NOT NULL,
-    metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(aggregate_id, aggregate_version)
+CREATE TABLE projection_positions (
+    projection_name     VARCHAR(255) NOT NULL,
+    position            BIGINT NOT NULL DEFAULT 0,
+    last_updated        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT pk_projection_positions PRIMARY KEY (projection_name)
 );
 
--- Essential indexes
-CREATE INDEX idx_events_aggregate ON events(aggregate_id, aggregate_type);
-CREATE INDEX idx_events_global_sequence ON events(global_sequence);
-CREATE INDEX idx_events_type ON events(event_type);
-CREATE INDEX idx_events_created_at ON events(created_at);
-```
-
-### Future Migrations
-
-```sql
--- Version 1.1.0 - Add snapshot support
-CREATE TABLE snapshots (
-    snapshot_id UUID PRIMARY KEY,
-    aggregate_id UUID NOT NULL,
-    aggregate_type VARCHAR(255) NOT NULL,
-    version BIGINT NOT NULL,
-    snapshot_type VARCHAR(255) NOT NULL,
-    snapshot_data JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(aggregate_id, version)
+CREATE TABLE account_balance_projections (
+    id                  BIGSERIAL NOT NULL,
+    account_id          UUID NOT NULL,
+    balance             DECIMAL(19,2) NOT NULL DEFAULT 0.00,
+    currency            VARCHAR(3) NOT NULL DEFAULT 'USD',
+    last_updated        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    version             BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT pk_account_balance_projections PRIMARY KEY (id),
+    CONSTRAINT uk_account_balance_projections_account_id UNIQUE (account_id)
 );
-
--- Version 1.2.0 - Add metadata indexes
-CREATE INDEX idx_events_metadata_correlation 
-ON events USING GIN ((metadata->>'correlationId'));
 ```
 
-## Backup and Recovery
+`projection_positions` is the checkpoint table used by `ProjectionService` to track the last processed global sequence.
 
-### 1. Backup Strategy
+## Complete Index List
 
-```sql
--- Full backup
-pg_dump -h localhost -U firefly -d firefly_eventstore > backup_full.sql
+### events table
 
--- Events table only
-pg_dump -h localhost -U firefly -d firefly_eventstore -t events > backup_events.sql
+| Index | Columns | Condition |
+|-------|---------|-----------|
+| PK | `event_id` | |
+| UNIQUE | `global_sequence` | |
+| UNIQUE | `(aggregate_id, aggregate_version)` | |
+| `idx_events_aggregate` | `(aggregate_id, aggregate_type)` | |
+| `idx_events_global_sequence` | `(global_sequence)` | |
+| `idx_events_type` | `(event_type)` | |
+| `idx_events_created_at` | `(created_at)` | |
+| `idx_events_aggregate_version` | `(aggregate_id, aggregate_version)` | |
+| `idx_events_correlation_id` | `(correlation_id)` | `WHERE correlation_id IS NOT NULL` |
+| `idx_events_causation_id` | `(causation_id)` | `WHERE causation_id IS NOT NULL` |
+| `idx_events_tenant_id` | `(tenant_id)` | `WHERE tenant_id IS NOT NULL` |
+| `idx_events_created_by` | `(created_by)` | `WHERE created_by IS NOT NULL` |
+| `idx_events_aggregate_type_created` | `(aggregate_type, created_at DESC)` | |
+| `idx_events_type_created` | `(event_type, created_at DESC)` | |
+| `idx_events_tenant_aggregate` | `(tenant_id, aggregate_id)` | `WHERE tenant_id IS NOT NULL` |
 
--- Incremental backup (events after specific sequence)
-COPY (
-    SELECT * FROM events 
-    WHERE global_sequence > 1000000
-) TO '/backup/events_incremental.csv' WITH CSV HEADER;
-```
+### snapshots table
 
-### 2. Point-in-Time Recovery
+| Index | Columns | Condition |
+|-------|---------|-----------|
+| PK | `(aggregate_id, aggregate_type)` | |
+| `idx_snapshots_version` | `(aggregate_version)` | |
+| `idx_snapshots_created_at` | `(created_at)` | |
+| `idx_snapshots_type` | `(aggregate_type)` | |
+| `idx_snapshots_tenant_id` | `(tenant_id)` | `WHERE tenant_id IS NOT NULL` |
+| `idx_snapshots_type_version` | `(aggregate_type, aggregate_version DESC)` | |
+| `idx_snapshots_type_created` | `(aggregate_type, created_at DESC)` | |
 
-```sql
--- Restore to specific global sequence
-CREATE TABLE events_restored AS 
-SELECT * FROM events 
-WHERE global_sequence <= 1000000;
-```
+### event_outbox table
 
-## Monitoring Queries
+| Index | Columns | Condition |
+|-------|---------|-----------|
+| PK | `outbox_id` | |
+| `idx_outbox_status` | `(status)` | |
+| `idx_outbox_created_at` | `(created_at)` | |
+| `idx_outbox_next_retry` | `(next_retry_at)` | `WHERE status = 'FAILED'` |
+| `idx_outbox_aggregate` | `(aggregate_id, aggregate_type)` | |
+| `idx_outbox_event_type` | `(event_type)` | |
+| `idx_outbox_pending` | `(created_at)` | `WHERE status = 'PENDING'` |
+| `idx_outbox_priority` | `(priority DESC, created_at ASC)` | `WHERE status = 'PENDING'` |
+| `idx_outbox_status_priority` | `(status, priority DESC, created_at ASC)` | |
 
-### 1. Event Store Statistics
+## Test Schema
 
-```sql
-SELECT 
-    COUNT(*) as total_events,
-    COUNT(DISTINCT aggregate_id) as total_aggregates,
-    MAX(global_sequence) as current_global_sequence,
-    COUNT(DISTINCT event_type) as unique_event_types,
-    COUNT(DISTINCT aggregate_type) as unique_aggregate_types
-FROM events;
-```
-
-### 2. Event Type Distribution
-
-```sql
-SELECT 
-    event_type,
-    COUNT(*) as event_count,
-    ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM events), 2) as percentage
-FROM events 
-GROUP BY event_type 
-ORDER BY event_count DESC;
-```
-
-### 3. Aggregate Activity
-
-```sql
-SELECT 
-    aggregate_type,
-    COUNT(DISTINCT aggregate_id) as aggregate_count,
-    AVG(aggregate_version) as avg_version,
-    MAX(aggregate_version) as max_version
-FROM events 
-GROUP BY aggregate_type;
-```
-
-This schema provides a solid foundation for event sourcing with excellent performance characteristics and scalability options.
+For H2-based tests, `src/test/resources/db/test-schema.sql` creates minimal versions of `projection_positions` and `account_balance_projections` tables.

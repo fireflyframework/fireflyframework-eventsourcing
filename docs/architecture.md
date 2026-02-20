@@ -1,521 +1,219 @@
-# Architecture Overview
+# Architecture
 
-This document provides a comprehensive overview of the Firefly Event Sourcing Library architecture, design principles, and component interactions.
-
-## System Overview
-
-The Firefly Event Sourcing Library follows the principles of Domain-Driven Design (DDD) and Event Sourcing, providing a production-ready implementation for building event-sourced systems in the Firefly Framework.
-
-### Core Principles
-
-1. **Event Sourcing**: State is derived from a sequence of events
-2. **Reactive Programming**: Non-blocking operations using Project Reactor
-3. **Domain-Driven Design**: Rich domain models with clear boundaries
-4. **Read/Write Separation**: Separate write models (aggregates) from read models (projections)
-5. **Eventual Consistency**: Asynchronous processing and integration
-
-## Architecture Layers
+## System Layers
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Application Layer                            │
-│  • Services      • Controllers     • Application Handlers      │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     Domain Layer                                │
-│  • Aggregates    • Events        • Domain Services             │
-│  • AggregateRoot • Event         • Business Logic              │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                Infrastructure Layer                             │
-│  • EventStore    • SnapshotStore  • Publishers                 │
-│  • R2DBC        • EDA Integration • Configuration               │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                   External Systems                              │
-│  • Database     • Message Brokers  • Cache                     │
-│  • PostgreSQL   • Kafka/RabbitMQ   • Redis                     │
-└─────────────────────────────────────────────────────────────────┘
++--------------------------------------------------+
+|                Application Layer                  |
+|  Services, Controllers, Command Handlers          |
++--------------------------------------------------+
+          |                          |
+          v                          v
++-------------------+    +---------------------+
+|   Domain Layer    |    | Infrastructure Layer |
+|                   |    |                      |
+| Event             |    | R2dbcEventStore      |
+| AbstractDomainEvent|   | R2dbcSnapshotStore   |
+| AggregateRoot     |    | EventTypeRegistry    |
+| @DomainEvent      |    | EventOutboxService   |
+| StoredEventEnvelope|   | EventSourcingPublisher|
+| EventStream       |    +---------------------+
++-------------------+             |
+          |                       v
+          |             +---------------------+
+          |             | Transaction Layer    |
+          |             |                      |
+          |             | @EventSourcingTransactional
+          |             | EventSourcingTransactionalAspect
+          |             | TransactionalOperator|
+          |             +---------------------+
+          |                       |
+          v                       v
++--------------------------------------------------+
+|              PostgreSQL (R2DBC)                    |
+|  events | snapshots | event_outbox | projections   |
++--------------------------------------------------+
 ```
 
-## Core Components
+## Domain Layer
 
-### 1. Domain Layer
+### Event Interface
 
-#### Event Interface
-- **Package**: `org.fireflyframework.eventsourcing.domain`
-- **Purpose**: Defines the contract for domain events
-- **Key Methods**: `getEventType()`, `getAggregateId()`, `getEventTimestamp()`, `getMetadata()`
+The root abstraction for all domain events. Provides default implementations that read from `@DomainEvent` annotation:
 
-#### AggregateRoot Class
-- **Package**: `org.fireflyframework.eventsourcing.aggregate`
-- **Purpose**: Base class for all event-sourced aggregates
-- **Features**:
-  - Event application with `applyChange()`
-  - State reconstruction with `loadFromHistory()`
-  - Uncommitted event tracking
-  - Version management for optimistic concurrency
-  - Reflection-based event handler invocation
+- `getAggregateId()` -- required, identifies the owning aggregate
+- `getEventType()` -- default reads from `@DomainEvent` annotation; throws if annotation is missing
+- `getMetadata()` -- default returns empty map
+- `getEventTimestamp()` -- default returns `Instant.now()`
+- `getEventVersion()` -- default returns `1`
 
-#### EventEnvelope Class
-- **Package**: `org.fireflyframework.eventsourcing.domain`
-- **Purpose**: Wraps domain events with persistence metadata
-- **Contains**: Event ID, aggregate info, versioning, timestamps, metadata
+Decorated with `@JsonTypeInfo` for polymorphic serialization using the `eventType` property.
 
-#### EventStream Class
-- **Package**: `org.fireflyframework.eventsourcing.domain`
-- **Purpose**: Collection of events for an aggregate
-- **Features**: Filtering, querying, statistics
+### AbstractDomainEvent
 
-### 2. Persistence Layer
+Base class that implements `Event` with Lombok `@SuperBuilder` support. Provides:
 
-#### EventStore Interface
-- **Package**: `org.fireflyframework.eventsourcing.store`
-- **Purpose**: Main interface for event persistence and retrieval
-- **Implementations**: `R2dbcEventStore` (primary)
+- Fields: `aggregateId`, `eventTimestamp`, `metadata`, `eventVersion`
+- Fluent metadata API: `addMetadata(key, value)`, `addMetadata(map)`
+- Builder helpers: `.correlationId(...)`, `.causationId(...)`, `.userId(...)`, `.source(...)`
 
-#### R2dbcEventStore Implementation
-- **Package**: `org.fireflyframework.eventsourcing.store.r2dbc`
-- **Features**:
-  - Reactive database operations
-  - Transaction management with `TransactionalOperator`
-  - Optimistic concurrency control
-  - Event streaming capabilities
-  - Integration with fireflyframework-r2dbc
+### @DomainEvent Annotation
 
-#### SnapshotStore Interface
-- **Package**: `org.fireflyframework.eventsourcing.snapshot`
-- **Purpose**: Snapshot persistence for performance optimization
-- **Features**: Save, load, delete snapshots with versioning
+Declares a class as a domain event with attributes:
 
-### 3. Transaction Management Layer
+| Attribute | Type | Default | Purpose |
+|-----------|------|---------|---------|
+| `value` | `String` | (required) | Event type identifier, aliased to `@JsonTypeName.value` |
+| `description` | `String` | `""` | Human-readable description |
+| `version` | `int` | `1` | Schema version for evolution |
+| `publishable` | `boolean` | `true` | Whether to publish to external systems |
+| `tags` | `String[]` | `{}` | Categorization tags |
 
-#### @EventSourcingTransactional Annotation
-- **Package**: `org.fireflyframework.eventsourcing.annotation`
-- **Purpose**: Declarative transaction management for event sourcing operations
-- **Features**:
-  - Full ACID guarantees (Atomicity, Consistency, Isolation, Durability)
-  - Configurable isolation levels (DEFAULT, READ_UNCOMMITTED, READ_COMMITTED, REPEATABLE_READ, SERIALIZABLE)
-  - Transaction propagation control (REQUIRED, REQUIRES_NEW, MANDATORY, NEVER, SUPPORTS, NOT_SUPPORTED)
-  - Automatic rollback on RuntimeException and Error
-  - Configurable rollback rules (rollbackFor, noRollbackFor)
-  - Automatic retry on concurrency conflicts with exponential backoff
-  - Automatic event publishing after successful commit (Transactional Outbox pattern)
-  - Timeout support
-  - Read-only transaction optimization
+### AggregateRoot
 
-#### EventSourcingTransactionalAspect
-- **Package**: `org.fireflyframework.eventsourcing.transaction`
-- **Purpose**: AOP aspect that intercepts @EventSourcingTransactional methods
-- **Implementation**:
-  - Uses Spring AOP with AspectJ annotations
-  - Integrates with Spring's ReactiveTransactionManager
-  - Tracks pending events in Reactor Context during transaction
-  - Publishes events via EventSourcingPublisher after commit
-  - Implements retry logic with exponential backoff for ConcurrencyException
-  - Supports both Mono and Flux return types
-  - Maps isolation levels to Spring transaction constants
-  - Applies transaction propagation behavior
+Base class for event-sourced aggregates. Fields:
 
-**ACID Properties:**
-- **Atomicity**: All events saved or none (all-or-nothing) via database transactions
-- **Consistency**: Aggregate version checks prevent conflicts via optimistic locking
-- **Isolation**: Configurable isolation levels control visibility between concurrent transactions
-- **Durability**: Events persisted to database before method returns
+| Field | Type | Initial Value |
+|-------|------|---------------|
+| `id` | `UUID` | Set in constructor |
+| `aggregateType` | `String` | Set in constructor |
+| `version` | `long` | `-1` |
+| `uncommittedEvents` | `List<Event>` | Empty list |
+| `deleted` | `boolean` | `false` |
 
-**Transaction Lifecycle:**
-1. Begin transaction with configured isolation level and propagation
-2. Execute business logic (load aggregate, apply changes)
-3. Append events to event store
-4. Track pending events in Reactor Context
-5. Commit transaction (or rollback on error)
-6. Publish events to message bus (only after successful commit)
-7. Return result to caller
+Key methods:
 
-#### @DomainEvent Annotation
-- **Package**: `org.fireflyframework.eventsourcing.annotation`
-- **Purpose**: Declarative event type definition aligned with Spring conventions
-- **Features**:
-  - Combines @JsonTypeName for Jackson polymorphic serialization
-  - Metadata: description, version, publishable flag, tags
-  - Eliminates need to override getEventType() method
-  - Compile-time validation of event type uniqueness
+| Method | Visibility | Purpose |
+|--------|-----------|---------|
+| `applyChange(Event)` | `protected` | Adds event to uncommitted list, calls handler, increments version |
+| `loadFromHistory(List<StoredEventEnvelope>)` | `public` | Replays events to rebuild state, sets version, clears uncommitted |
+| `getUncommittedEvents()` | `public` | Returns unmodifiable list of events not yet persisted |
+| `markEventsAsCommitted()` | `public` | Clears the uncommitted list after successful persistence |
+| `getCurrentVersion()` | `public` | Returns current version |
+| `setCurrentVersion(long)` | `protected` | For snapshot restoration only |
+| `markAsDeleted()` | `protected` | Soft delete |
 
-### 4. Integration Layer
+Event handler resolution (in the private `applyEvent` method):
+1. Look for a method named `on` accepting the exact event class
+2. Look for a method named `on` + event class simple name (e.g., `onMoneyWithdrawnEvent`)
+3. Look for any method named `on` with a parameter assignable from the event class
+4. Throw `EventHandlerException` if no handler is found
 
-#### EventSourcingPublisher
-- **Package**: `org.fireflyframework.eventsourcing.publisher`
-- **Purpose**: Publishes events to external message systems
-- **Integration**: Uses fireflyframework-eda for message bus abstraction
+## Infrastructure Layer
 
-#### Configuration System
-- **Package**: `org.fireflyframework.eventsourcing.config`
-- **Components**:
-  - `EventSourcingProperties`: Configuration properties
-  - `R2dbcBeansAutoConfiguration`: Imports Spring R2DBC infrastructure; loads before EventStoreAutoConfiguration
-  - `EventSourcingAutoConfiguration`: Spring Boot auto-configuration
-  - `EventStoreAutoConfiguration`: Event store setup
-  - `SnapshotAutoConfiguration`: Snapshot system setup
+### R2dbcEventStore
 
-**Auto-Configuration Ordering:** `R2dbcBeansAutoConfiguration` loads first (via `@AutoConfigureBefore`) to ensure `DatabaseClient` and `R2dbcEntityTemplate` beans exist before `EventStoreAutoConfiguration` evaluates its `@ConditionalOnBean` conditions. Each configuration class independently registers `EventSourcingProperties` via `@EnableConfigurationProperties`.
+Implements `EventStore` using Spring R2DBC `DatabaseClient`. Key behaviors:
 
-## Data Flow
+- **appendEvents**: Wraps the operation in `TransactionalOperator.transactional()`. First checks concurrency by comparing `expectedVersion` with the current max `aggregate_version`. Then inserts events using a SQL INSERT that excludes `global_sequence` (the DB assigns it via `BIGSERIAL`). If an `EventOutboxService` is present (`@Autowired(required = false)`), saves events to the outbox in the same transaction.
+- **loadEventStream**: Queries events ordered by `aggregate_version ASC` and maps rows to `StoredEventEnvelope` objects.
+- **getAggregateVersion**: Returns `COALESCE(MAX(aggregate_version), -1)` -- returns `-1` for non-existent aggregates.
+- **streamAllEvents**: Streams events ordered by `global_sequence ASC`.
 
-### 1. Command Processing Flow
+JSON data is bound as `String` (TEXT columns), not as JSONB. This makes the store database-agnostic.
 
-```
-Client Request
-      │
-      ▼
-Application Service
-      │
-      ▼ 1. Load Aggregate
-EventStore.loadEventStream()
-      │
-      ▼ 2. Reconstruct State
-AggregateRoot.loadFromHistory()
-      │
-      ▼ 3. Execute Business Logic
-Aggregate.businessMethod()
-      │
-      ▼ 4. Apply Events
-AggregateRoot.applyChange()
-      │
-      ▼ 5. Persist Events
-EventStore.appendEvents()
-      │
-      ▼ 6. Publish Events (async)
-EventSourcingPublisher.publishEvents()
-      │
-      ▼
-Response to Client
-```
+### R2dbcSnapshotStore
 
-### 2. Event Persistence Flow
+Implements `SnapshotStore` using `DatabaseClient`. The `snapshots` table has a composite PK of `(aggregate_id, aggregate_type)`, meaning only one snapshot per aggregate is stored (UPSERT on save).
+
+### EventTypeRegistry
+
+Scans the classpath at `ApplicationReadyEvent` for classes that implement `Event` and are annotated with `@JsonTypeName`. Registers them with Jackson's `ObjectMapper` as `NamedType` for polymorphic deserialization.
+
+Scan packages are configured via `firefly.eventsourcing.event-scan-packages` (default: `"org.fireflyframework"`). Multiple packages can be comma-separated.
+
+Manual registration is also available:
+- `registerEventType(Class<? extends Event>)` -- reads type name from `@JsonTypeName`
+- `registerEventType(Class<? extends Event>, String)` -- uses a custom type name
+
+### EventSourcingPublisher
+
+Bridges event sourcing to the EDA messaging infrastructure (`fireflyframework-eda`). Uses `EventPublisherFactory` to obtain a publisher and routes events to destinations using the pattern `{prefix}.{eventType}` or custom mappings.
+
+### EventOutboxService
+
+Implements the Transactional Outbox pattern. Events are saved to the `event_outbox` table in the same database transaction as the event store write. A background processor (`EventOutboxProcessor`) polls for pending entries and publishes them via `EventSourcingPublisher`.
+
+Features:
+- Priority-based processing (1=highest, 10=lowest)
+- Exponential backoff retry
+- Dead letter queue for permanently failed entries
+- Cleanup of completed entries
+
+## Transaction Layer
+
+### @EventSourcingTransactional
+
+Annotation for transactional event sourcing operations. Attributes:
+
+| Attribute | Type | Default |
+|-----------|------|---------|
+| `propagation` | `Propagation` | `REQUIRED` |
+| `publishEvents` | `boolean` | `true` |
+| `retryOnConcurrencyConflict` | `boolean` | `false` |
+| `maxRetries` | `int` | `3` |
+| `retryDelay` | `long` | `100` (ms, exponential backoff) |
+| `timeout` | `int` | `-1` (no timeout, in seconds) |
+| `readOnly` | `boolean` | `false` |
+| `isolation` | `Isolation` | `DEFAULT` |
+| `rollbackFor` | `Class<?>[]` | `{}` |
+| `noRollbackFor` | `Class<?>[]` | `{}` |
+| `transactionManager` | `String` | `""` |
+
+`Propagation` enum: `REQUIRED`, `REQUIRES_NEW`, `MANDATORY`, `NEVER`, `SUPPORTS`, `NOT_SUPPORTED`
+
+`Isolation` enum: `DEFAULT`, `READ_UNCOMMITTED`, `READ_COMMITTED`, `REPEATABLE_READ`, `SERIALIZABLE`
+
+### EventSourcingTransactionalAspect
+
+AOP aspect that intercepts methods annotated with `@EventSourcingTransactional`. Creates a `ReactiveTransactionManager`-backed transaction and publishes events via `EventSourcingPublisher` after successful commit.
+
+## Auto-Configuration Chain
+
+The library has 9 auto-configuration classes. They are loaded via Spring Boot's `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`.
+
+| Order | Class | Condition | Creates |
+|-------|-------|-----------|---------|
+| 1 | `R2dbcBeansAutoConfiguration` | `@ConditionalOnClass(ConnectionFactory, R2dbcEntityTemplate)` | `DatabaseClient`, `R2dbcEntityTemplate` (fallbacks) |
+| 2 | `EventStoreAutoConfiguration` | `@AutoConfigureAfter(R2dbcBeansAutoConfiguration)`, `@ConditionalOnBean(DatabaseClient, R2dbcEntityTemplate, ConnectionFactory)` | `R2dbcEventStore` |
+| 3 | `SnapshotAutoConfiguration` | `firefly.eventsourcing.snapshot.enabled=true` (default) | `R2dbcSnapshotStore`, `SnapshotTrigger` |
+| 4 | `EventSourcingAutoConfiguration` | `firefly.eventsourcing.enabled=true` (default) | `EventSourcingPublisher`, `ObjectMapper`, `EventStoreMetrics`, `EventTypeRegistry`, `EventSourcingTransactionalAspect`, `EventUpcastingService`, `EventOutboxService`, `EventOutboxProcessor` |
+| 5 | `EventSourcingJacksonConfiguration` | `@ConditionalOnMissingBean(ObjectMapper)` | `ObjectMapper` with JavaTimeModule, polymorphic Event handling |
+| 6 | `EventSourcingHealthAutoConfiguration` | `@ConditionalOnClass(HealthIndicator)` | `EventStoreHealthIndicator`, `OutboxHealthIndicator`, `SnapshotStoreHealthIndicator`, `ProjectionHealthIndicator` |
+| 7 | `EventSourcingMetricsAutoConfiguration` | `@ConditionalOnClass(MeterRegistry)` | `EventStoreMetrics` |
+| 8 | `EventSourcingProjectionAutoConfiguration` | `@ConditionalOnClass(ProjectionService, MeterRegistry)` | `ProjectionHealthIndicator` |
+| 9 | `CircuitBreakerAutoConfiguration` | `@ConditionalOnClass(CircuitBreaker)`, `firefly.eventsourcing.resilience.circuit-breaker.enabled=true` (default: **false**) | `eventStoreCircuitBreaker`, `outboxCircuitBreaker`, `projectionCircuitBreaker` |
+
+Additionally, `MultiTenancyAutoConfiguration` loads when `firefly.eventsourcing.multitenancy.enabled=true` (default: **false**).
+
+## Event Persistence Flow
 
 ```
-Events from Aggregate
-      │
-      ▼ 1. Create Envelopes
-EventEnvelope.of()
-      │
-      ▼ 2. Begin Transaction
-TransactionalOperator.transactional()
-      │
-      ▼ 3. Check Concurrency
-R2dbcEventStore.checkConcurrency()
-      │
-      ▼ 4. Insert Events
-R2dbcEventStore.insertEvents()
-      │
-      ▼ 5. Commit Transaction
-Transaction.commit()
-      │
-      ▼
-EventStream Response
+1. Service calls eventStore.appendEvents(aggregateId, type, events, expectedVersion)
+2. TransactionalOperator begins R2DBC transaction
+3. checkConcurrency: SELECT COALESCE(MAX(aggregate_version), -1) WHERE aggregate_id AND aggregate_type
+4. If currentVersion != expectedVersion --> throw ConcurrencyException, rollback
+5. createEventEnvelopes: assign aggregate_version = baseVersion + index + 1, globalSequence = 0 (placeholder)
+6. insertEvents: INSERT INTO events (event_id, aggregate_id, aggregate_type, aggregate_version,
+                                     event_type, event_data, metadata, created_at)
+   NOTE: global_sequence is NOT in the INSERT -- the database BIGSERIAL assigns it
+7. saveToOutboxIfEnabled: if EventOutboxService is wired, save each envelope to event_outbox
+8. Transaction commits
+9. EventSourcingTransactionalAspect publishes events via EventSourcingPublisher (post-commit)
 ```
 
-**Note:** The `global_sequence` column is auto-populated by PostgreSQL's `BIGSERIAL` type. The INSERT statement deliberately excludes this column, letting the database assign a monotonically increasing value for global event ordering.
-
-### 3. Event Reconstruction Flow
+## Event Loading/Replay Flow
 
 ```
-LoadEventStream Request
-      │
-      ▼ 1. Query Database
-R2dbcEntityTemplate.select()
-      │
-      ▼ 2. Map Rows to Envelopes
-mapToEventEnvelope()
-      │
-      ▼ 3. Deserialize Events
-deserializeEvent()
-      │
-      ▼ 4. Create EventStream
-EventStream.of()
-      │
-      ▼ 5. Load into Aggregate
-AggregateRoot.loadFromHistory()
-      │
-      ▼ 6. Apply Events Sequentially
-AggregateRoot.applyEvent()
-      │
-      ▼
-Reconstructed Aggregate
+1. Service calls eventStore.loadEventStream(aggregateId, type)
+2. SELECT ... FROM events WHERE aggregate_id AND aggregate_type ORDER BY aggregate_version ASC
+3. Each row is mapped to StoredEventEnvelope (event_data TEXT is deserialized via ObjectMapper)
+4. EventStream.of() wraps the list with version metadata
+5. Service creates empty aggregate: new MyAggregate(id) -- version starts at -1
+6. aggregate.loadFromHistory(stream.getEvents()):
+   a. Validates all events belong to this aggregate (matching ID and type)
+   b. For each envelope, calls applyEvent(envelope.getEvent()) via reflection
+   c. Sets version = envelope.getAggregateVersion()
+   d. Clears uncommittedEvents
+7. Aggregate is now at current state with correct version
 ```
-
-## Integration with fireflyframework-r2dbc
-
-The event sourcing library leverages the existing fireflyframework-r2dbc infrastructure:
-
-### Database Operations
-- **DatabaseClient**: For custom SQL queries
-- **R2dbcEntityTemplate**: For type-safe ORM operations
-- **ReactiveTransactionManager**: For transaction management
-- **TransactionalOperator**: For reactive transaction wrapping
-
-### Advanced Features
-- **FilterUtils**: For complex event querying (future enhancement)
-- **PaginationUtils**: For paginated event streaming (future enhancement)
-- **Connection Management**: Shared connection pooling
-
-## Concurrency Control
-
-### Optimistic Locking Strategy
-
-```java
-// 1. Load current version
-Mono<Long> currentVersion = eventStore.getAggregateVersion(aggregateId, aggregateType);
-
-// 2. Check expected vs actual version
-if (currentVersion != expectedVersion) {
-    throw new ConcurrencyException(aggregateId, aggregateType, expectedVersion, currentVersion);
-}
-
-// 3. Append events with version increment
-eventStore.appendEvents(aggregateId, aggregateType, events, currentVersion);
-```
-
-### Database Constraints
-```sql
--- Ensure unique version per aggregate
-UNIQUE(aggregate_id, aggregate_version)
-
--- Global ordering
-global_sequence BIGSERIAL UNIQUE
-```
-
-## Event Processing Patterns
-
-### 1. Command Handler Pattern
-
-```java
-@Component
-public class CreateAccountHandler {
-    private final EventStore eventStore;
-    
-    public Mono<AccountId> handle(CreateAccountCommand command) {
-        return Mono.fromCallable(() -> {
-            Account account = new Account(
-                command.getAccountId(),
-                command.getAccountNumber(),
-                command.getInitialBalance()
-            );
-            return account;
-        })
-        .flatMap(account -> 
-            eventStore.appendEvents(
-                account.getId(),
-                "Account",
-                account.getUncommittedEvents(),
-                -1L  // -1 = new aggregate (no prior events)
-            )
-        )
-        .map(stream -> command.getAccountId());
-    }
-}
-```
-
-### 2. Event Handler Pattern
-
-```java
-@Component
-public class AccountProjectionHandler {
-    
-    @EventHandler
-    public void on(AccountCreatedEvent event) {
-        // Update read model
-        accountReadModelRepository.save(
-            new AccountReadModel(
-                event.getAggregateId(),
-                event.getAccountNumber(),
-                event.getInitialBalance()
-            )
-        );
-    }
-}
-```
-
-### 3. Saga Pattern (Process Manager)
-
-```java
-@Component
-public class MoneyTransferSaga {
-    
-    @SagaOrchestrationStart
-    public void handle(TransferMoneyCommand command) {
-        // Step 1: Debit source account
-        commandGateway.send(
-            new DebitAccountCommand(
-                command.getFromAccountId(),
-                command.getAmount()
-            )
-        );
-    }
-    
-    @SagaOrchestrationContinue
-    public void on(AccountDebitedEvent event) {
-        // Step 2: Credit target account
-        commandGateway.send(
-            new CreditAccountCommand(
-                sagaData.getToAccountId(),
-                event.getAmount()
-            )
-        );
-    }
-}
-```
-
-## Error Handling Strategy
-
-### Exception Hierarchy
-
-```
-RuntimeException
-  └── EventStoreException
-      ├── ConcurrencyException
-      ├── EventSerializationException
-      └── EventStoreConnectionException
-      
-  └── EventHandlerException
-      ├── EventHandlerNotFoundException  
-      └── EventHandlerInvocationException
-      
-  └── EventPublishingException
-      ├── PublisherNotAvailableException
-      └── PublishTimeoutException
-```
-
-### Error Recovery Patterns
-
-1. **Retry with Exponential Backoff**
-   ```java
-   return operation()
-       .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
-           .filter(throwable -> throwable instanceof TransientException));
-   ```
-
-2. **Circuit Breaker Pattern**
-   ```yaml
-   firefly:
-     eventsourcing:
-       performance:
-         circuit-breaker:
-           enabled: true
-           failure-rate-threshold: 50.0
-   ```
-
-3. **Graceful Degradation**
-   ```java
-   return primaryOperation()
-       .onErrorResume(ex -> fallbackOperation())
-       .onErrorReturn(defaultValue);
-   ```
-
-## Performance Considerations
-
-### 1. Batching Strategy
-- Events are batched for persistence efficiency
-- Configurable batch sizes per environment
-- Parallel processing for large event streams
-
-### 2. Snapshot Strategy
-- Automatic snapshot creation based on event count threshold
-- Configurable snapshot frequency and retention
-- Compression and caching support
-
-### 3. Connection Management
-- R2DBC connection pooling through fireflyframework-r2dbc
-- Configurable pool sizes and timeouts
-- Connection health monitoring
-
-### 4. Memory Management
-- Streaming APIs for large result sets
-- Backpressure handling in reactive streams
-- Configurable buffer sizes
-
-## Security Considerations
-
-### 1. Event Data Protection
-- Sensitive data encryption at rest
-- PII data masking in events
-- Audit trail for event access
-
-### 2. Access Control
-- Role-based access to event stores
-- Aggregate-level permissions
-- Event type restrictions
-
-### 3. Data Privacy
-- Right to be forgotten implementation
-- Data retention policies
-- GDPR compliance features
-
-## Monitoring and Observability
-
-### 1. Metrics Collection
-- Event throughput and latency
-- Aggregate reconstruction times
-- Error rates and types
-- Database connection pool stats
-
-### 2. Distributed Tracing
-- Request tracing across services
-- Event processing correlation
-- Performance bottleneck identification
-
-### 3. Health Checks
-- Database connectivity
-- Event store availability
-- Publisher health status
-
-## Deployment Architecture
-
-### 1. Microservice Deployment
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Service   │    │   Service   │    │   Service   │
-│      A      │    │      B      │    │      C      │
-│             │    │             │    │             │
-│ Event Store │    │ Event Store │    │ Event Store │
-└─────────────┘    └─────────────┘    └─────────────┘
-       │                   │                   │
-       └───────────────────┼───────────────────┘
-                           │
-                  ┌─────────────┐
-                  │  Shared     │
-                  │  Database   │
-                  │ (PostgreSQL)│
-                  └─────────────┘
-```
-
-### 2. Event Streaming Architecture
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Command   │    │    Event    │    │    Query    │
-│   Services  │───▶│    Store    │───▶│   Services  │
-│             │    │             │    │             │
-└─────────────┘    └─────────────┘    └─────────────┘
-                           │
-                           ▼
-                  ┌─────────────┐
-                  │  Message    │
-                  │   Broker    │
-                  │  (Kafka)    │
-                  └─────────────┘
-                           │
-                           ▼
-                  ┌─────────────┐
-                  │  External   │
-                  │  Services   │
-                  │             │
-                  └─────────────┘
-```
-
-This architecture provides a robust foundation for building event-sourced systems within the Firefly Framework, ensuring scalability, reliability, and maintainability.

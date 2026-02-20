@@ -1,158 +1,323 @@
 # Optional Enhancements
 
-This document describes the optional enhancements that have been added to the Firefly Event Sourcing Library to improve resilience, observability, and multi-tenancy support.
+All features described in this document are **disabled by default** or activate automatically when their dependencies are on the classpath. None of them are required for basic event sourcing.
 
----
+## Circuit Breakers (Resilience4j)
 
-## 1. Circuit Breaker Pattern (Resilience4j)
+Circuit breakers prevent cascading failures by halting calls to a struggling subsystem and allowing it to recover.
 
-### Overview
-Circuit breaker pattern implementation using Resilience4j to prevent cascading failures and improve system resilience.
+### Activation
 
-### Components
-
-#### CircuitBreakerConfiguration
-- **Location**: `org.fireflyframework.eventsourcing.resilience.CircuitBreakerConfiguration`
-- **Purpose**: Auto-configuration for circuit breakers
-- **Activation**: Set `firefly.eventsourcing.resilience.circuit-breaker.enabled=true`
-
-#### Three Circuit Breakers
-
-1. **Event Store Circuit Breaker**
-   - Failure rate threshold: 50%
-   - Wait duration: 60 seconds
-   - Sliding window: COUNT_BASED (100 calls)
-   - Minimum calls: 10
-
-2. **Outbox Circuit Breaker**
-   - Failure rate threshold: 60%
-   - Wait duration: 30 seconds
-   - Sliding window: TIME_BASED (2 minutes)
-   - Minimum calls: 5
-
-3. **Projection Circuit Breaker**
-   - Failure rate threshold: 70%
-   - Wait duration: 45 seconds
-   - Sliding window: TIME_BASED (5 minutes)
-   - Minimum calls: 5
-
-### Configuration Example
+Requires Resilience4j on the classpath **and** an explicit opt-in:
 
 ```yaml
 firefly:
   eventsourcing:
     resilience:
       circuit-breaker:
-        enabled: true
-        event-store:
-          failure-rate-threshold: 50
-          wait-duration-in-open-state: PT60S
-          sliding-window-type: COUNT_BASED
-          sliding-window-size: 100
+        enabled: true   # default: false
 ```
 
-### Usage
+The auto-configuration class is `CircuitBreakerAutoConfiguration`. It uses `@ConditionalOnClass(CircuitBreaker.class)` and `@ConditionalOnProperty(..., matchIfMissing = false)`, so it does nothing unless both conditions are met.
 
-Circuit breakers are automatically applied when enabled. They monitor operations and open the circuit when failure thresholds are exceeded, preventing further calls until the wait duration expires.
+### Three Named Circuit Breakers
 
----
+The library creates three circuit breakers, each tuned for its workload:
 
-## 2. Distributed Tracing (OpenTelemetry)
+| Name | Bean Name | Failure Threshold | Wait Duration | Sliding Window | Min Calls |
+|------|-----------|-------------------|---------------|----------------|-----------|
+| `eventStore` | `eventStoreCircuitBreaker` | 50% | 60s | COUNT_BASED (100) | 20 |
+| `outbox` | `outboxCircuitBreaker` | 60% | 30s | TIME_BASED (120s) | 10 |
+| `projection` | `projectionCircuitBreaker` | 70% | 45s | TIME_BASED (300s) | 10 |
 
-### Overview
-OpenTelemetry instrumentation for distributed tracing of event sourcing operations.
+The event store breaker is the strictest because it protects the critical write path. The projection breaker is the most tolerant because projections are eventually consistent and brief failures are acceptable.
 
-### Components
+All three breakers ignore `IllegalArgumentException` and `IllegalStateException` (validation errors that are not infrastructure failures).
 
-#### OpenTelemetryConfiguration
-- **Location**: `org.fireflyframework.eventsourcing.tracing.OpenTelemetryConfiguration`
-- **Purpose**: Configures OpenTelemetry tracer for event sourcing
-- **Activation**: Set `firefly.eventsourcing.tracing.enabled=true`
+### Event Store Circuit Breaker Details
 
-### Features
+```java
+CircuitBreakerConfig.custom()
+        .failureRateThreshold(50)
+        .slowCallRateThreshold(50)
+        .slowCallDurationThreshold(Duration.ofSeconds(5))
+        .waitDurationInOpenState(Duration.ofSeconds(60))
+        .permittedNumberOfCallsInHalfOpenState(10)
+        .minimumNumberOfCalls(20)
+        .slidingWindowType(SlidingWindowType.COUNT_BASED)
+        .slidingWindowSize(100)
+        .recordExceptions(Exception.class)
+        .ignoreExceptions(IllegalArgumentException.class, IllegalStateException.class)
+        .build();
+```
 
-- Automatic span creation for all event store operations
-- Context propagation across reactive streams
-- Span attributes include:
-  - Aggregate ID
-  - Aggregate type
-  - Event count
-  - Event version
-  - Global sequence numbers
+Each breaker logs state transitions at `WARN` level and errors at `ERROR` level via its event publisher.
 
-### Configuration Example
+### Dependency
+
+```xml
+<dependency>
+    <groupId>io.github.resilience4j</groupId>
+    <artifactId>resilience4j-spring-boot3</artifactId>
+    <optional>true</optional>
+</dependency>
+```
+
+## Metrics (Micrometer)
+
+`EventStoreMetrics` extends `FireflyMetricsSupport` (from `fireflyframework-observability`) and registers the following metrics when a `MeterRegistry` is on the classpath.
+
+### Metrics Reference
+
+| Metric | Type | Tags | Description |
+|--------|------|------|-------------|
+| `firefly.eventsourcing.operations.duration` | Timer | `operation` = `append`, `load`, `query` | Duration of event store operations |
+| `firefly.eventsourcing.events.appended` | Counter | | Total events appended |
+| `firefly.eventsourcing.events.loaded` | Counter | | Total events loaded |
+| `firefly.eventsourcing.errors` | Counter | `type` | Errors by category |
+| `firefly.eventsourcing.concurrency.conflicts` | Counter | | Optimistic concurrency conflicts |
+| `firefly.eventsourcing.connection.pool.active` | Gauge | | Active R2DBC connections |
+| `firefly.eventsourcing.batch.size` | DistributionSummary | | Batch sizes for append operations |
+| `firefly.eventsourcing.aggregates.total` | Gauge | | Total distinct aggregates |
+| `firefly.eventsourcing.events.total` | Gauge | | Total events in the store |
+
+### Activation
+
+Metrics are enabled by default when Spring Boot Actuator and Micrometer are on the classpath:
 
 ```yaml
 firefly:
   eventsourcing:
-    tracing:
-      enabled: true
-      service-name: firefly-eventsourcing
-      sampling-rate: 1.0  # 100% sampling
+    performance:
+      metrics-enabled: true   # default: true
 ```
 
-### Integration
+The auto-configuration class is `EventSourcingMetricsAutoConfiguration` (`@ConditionalOnClass(MeterRegistry.class)`).
 
-Requires OpenTelemetry SDK and exporter configuration in your application:
+### PerformanceSummary
+
+`EventStoreMetrics` provides a `getPerformanceSummary()` method that returns a `PerformanceSummary` object with all current metric values. This is useful for custom monitoring dashboards:
+
+```java
+EventStoreMetrics.PerformanceSummary summary = eventStoreMetrics.getPerformanceSummary();
+log.info("Average append time: {}ms, events appended: {}, conflicts: {}",
+        summary.getAverageAppendTime(),
+        summary.getEventsAppended(),
+        summary.getConcurrencyConflicts());
+```
+
+## Health Indicators
+
+When Spring Boot Actuator is on the classpath, the library registers four health indicators under `/actuator/health`.
+
+### Health Indicator Reference
+
+| Indicator | Bean | Condition | Checks |
+|-----------|------|-----------|--------|
+| `EventStoreHealthIndicator` | `eventStoreHealthIndicator` | `EventStore` bean exists | Event store connectivity |
+| `OutboxHealthIndicator` | `outboxHealthIndicator` | `EventOutboxService` bean exists | Outbox processing status |
+| `SnapshotStoreHealthIndicator` | `snapshotStoreHealthIndicator` | `SnapshotStore` bean exists | Snapshot store connectivity |
+| `ProjectionHealthIndicator` | `projectionHealthIndicator` | `ProjectionService<?>` beans exist | Projection lag and status |
+
+### Activation
+
+Health indicators are enabled by default when Actuator is on the classpath:
 
 ```yaml
-otel:
-  exporter:
-    otlp:
-      endpoint: http://localhost:4317
-  traces:
-    sampler: always_on
+firefly:
+  eventsourcing:
+    performance:
+      health-checks-enabled: true   # default: true
 ```
 
----
+The auto-configuration class is `EventSourcingHealthAutoConfiguration` (`@ConditionalOnClass(name = "org.springframework.boot.actuator.health.HealthIndicator")`).
 
-## 3. Event Upcasting
+### Projection Health Configuration
 
-### Overview
-Automatic event schema migration framework for handling event versioning and schema evolution.
+The projection health indicator uses additional properties:
 
-### Components
+```yaml
+firefly:
+  eventsourcing:
+    projection:
+      health-check:
+        timeout: 5s
+        max-acceptable-lag: 1000       # events behind before "unhealthy"
+        include-details: true
+        fail-on-unhealthy-projection: true
+```
 
-#### EventUpcaster Interface
-- **Location**: `org.fireflyframework.eventsourcing.upcasting.EventUpcaster`
-- **Purpose**: Define transformations from old event versions to new versions
+## Structured Logging
+
+`EventSourcingLoggingContext` is a utility class that manages SLF4J MDC (Mapped Diagnostic Context) values for event sourcing operations.
+
+### 16 MDC Keys
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `correlationId` | `String` | Distributed tracing correlation ID |
+| `causationId` | `String` | Event causation chain |
+| `aggregateId` | `String` | UUID of the aggregate |
+| `aggregateType` | `String` | Aggregate type name |
+| `eventType` | `String` | Event type identifier |
+| `tenantId` | `String` | Multi-tenancy tenant ID |
+| `userId` | `String` | User who triggered the operation |
+| `operation` | `String` | Operation name (e.g., `deposit`, `withdraw`) |
+| `duration` | `String` | Operation duration in milliseconds |
+| `version` | `String` | Aggregate version |
+| `globalSequence` | `String` | Global event sequence number |
+| `outboxId` | `String` | UUID of the outbox entry |
+| `status` | `String` | Operation or entry status |
+| `retryCount` | `String` | Current retry attempt |
+| `priority` | `String` | Outbox entry priority |
+| `destination` | `String` | Event publishing destination |
+
+### Usage
+
+Set context before operations:
+
+```java
+EventSourcingLoggingContext.setAggregateContext(accountId, "AccountLedger");
+EventSourcingLoggingContext.setUserId(userId);
+EventSourcingLoggingContext.setOperation("deposit");
+
+log.info("Processing deposit");
+// Log output includes: aggregateId=..., aggregateType=AccountLedger, userId=..., operation=deposit
+```
+
+Use scoped execution to automatically clean up context:
+
+```java
+EventSourcingLoggingContext.withAggregateContext(accountId, "AccountLedger", () -> {
+    log.info("All logs here include aggregate context");
+});
+// MDC is cleared after the block
+```
+
+### Reactive Context Propagation
+
+In reactive pipelines, MDC does not propagate across thread boundaries by default. Use `withMdcContext` to bridge MDC values into the Reactor Context:
+
+```java
+Mono<Void> result = EventSourcingLoggingContext.withMdcContext(
+        eventStore.appendEvents(accountId, "AccountLedger", events, expectedVersion)
+                .then()
+);
+```
+
+With `Hooks.enableAutomaticContextPropagation()` enabled (provided by `fireflyframework-observability`), this writes the current MDC values into the Reactor Context. The automatic propagation mechanism then restores them on each signal.
+
+## OpenTelemetry Tracing (Deprecated)
+
+The `OpenTelemetryConfiguration` class in `org.fireflyframework.eventsourcing.tracing` is deprecated since version `26.02.05` and will be removed in a future release. The class is intentionally empty.
+
+Distributed tracing is now provided by the separate `fireflyframework-observability` module, which uses the Micrometer Observation API with an OpenTelemetry bridge. If you need tracing, add `fireflyframework-observability` to your dependencies instead.
+
+## Multi-Tenancy
+
+Multi-tenancy support provides tenant isolation for event sourcing operations using Reactor Context.
+
+### Activation
+
+```yaml
+firefly:
+  eventsourcing:
+    multitenancy:
+      enabled: true   # default: false
+```
+
+The auto-configuration class is `MultiTenancyAutoConfiguration` (`@ConditionalOnProperty(..., matchIfMissing = false)`).
+
+### TenantContext
+
+`TenantContext` is a static utility that stores the tenant ID in the Reactor Context. The default tenant is `"default"`.
+
+| Method | Description |
+|--------|-------------|
+| `getCurrentTenantId()` | Returns `Mono<String>` with the current tenant ID from Reactor Context |
+| `getCurrentTenantIdOrDefault()` | Blocking call, returns the tenant ID or `"default"` |
+| `withTenantId(String)` | Returns a `Function<Context, Context>` for use with `.contextWrite(...)` |
+| `hasTenantId()` | Returns `Mono<Boolean>` indicating whether a tenant ID is set |
+| `clear()` | Returns a `Function<Context, Context>` that removes the tenant ID |
+| `getDefaultTenant()` | Returns `"default"` |
+
+### Usage
+
+Set the tenant context using Reactor's `contextWrite`:
+
+```java
+return eventStore.appendEvents(accountId, "AccountLedger", events, expectedVersion)
+        .contextWrite(TenantContext.withTenantId("tenant-abc"));
+```
+
+Read the tenant context downstream:
+
+```java
+return TenantContext.getCurrentTenantId()
+        .flatMap(tenantId -> {
+            log.info("Operating as tenant: {}", tenantId);
+            return eventStore.loadEventStream(accountId, "AccountLedger");
+        });
+```
+
+In a web controller, set the tenant from an HTTP header:
+
+```java
+@PostMapping("/accounts")
+public Mono<AccountLedger> createAccount(@RequestHeader("X-Tenant-ID") String tenantId,
+                                          @RequestBody CreateAccountRequest request) {
+    return accountService.openAccount(request)
+            .contextWrite(TenantContext.withTenantId(tenantId));
+}
+```
+
+## Event Upcasting
+
+Event upcasting transforms old event versions to new versions during deserialization. This handles event schema evolution without modifying the immutable event store.
+
+### EventUpcaster Interface
 
 ```java
 public interface EventUpcaster {
     boolean canUpcast(String eventType, int eventVersion);
     Event upcast(Event event);
-    int getTargetVersion();
-    int getPriority();  // Higher priority runs first
+    default int getTargetVersion() { return 2; }
+    default int getPriority() { return 0; }
 }
 ```
 
-#### EventUpcastingService
-- **Location**: `org.fireflyframework.eventsourcing.upcasting.EventUpcastingService`
-- **Purpose**: Manages and applies upcasters in sequence
-- **Features**:
-  - Priority-based ordering
-  - Chain execution (V1 → V2 → V3)
-  - Automatic detection of applicable upcasters
+| Method | Description |
+|--------|-------------|
+| `canUpcast(eventType, eventVersion)` | Returns `true` if this upcaster handles the given event type and version |
+| `upcast(event)` | Transforms the event to the target version |
+| `getTargetVersion()` | The version this upcaster produces (default: `2`) |
+| `getPriority()` | Higher priority runs first (default: `0`) |
 
-### Example Implementation
+### Example
+
+Suppose `MoneyDepositedEvent` originally had no `source` field. After adding it in version 2, you need an upcaster for old events:
 
 ```java
 @Component
-public class AccountCreatedV1ToV2Upcaster implements EventUpcaster {
-    
+public class MoneyDepositedV1ToV2Upcaster implements EventUpcaster {
+
     @Override
     public boolean canUpcast(String eventType, int eventVersion) {
-        return "account.created".equals(eventType) && eventVersion == 1;
+        return "money.deposited".equals(eventType) && eventVersion == 1;
     }
-    
+
     @Override
     public Event upcast(Event event) {
-        // Transform V1 event to V2
-        AccountCreatedEventV2 v2 = new AccountCreatedEventV2();
-        // ... map fields ...
-        return v2;
+        MoneyDepositedEvent v1 = (MoneyDepositedEvent) event;
+        return MoneyDepositedEvent.builder()
+                .aggregateId(v1.getAggregateId())
+                .amount(v1.getAmount())
+                .reference(v1.getReference())
+                .depositedBy(v1.getDepositedBy())
+                .source("UNKNOWN")  // default for old events
+                .build();
     }
-    
+
     @Override
     public int getTargetVersion() {
         return 2;
@@ -160,242 +325,22 @@ public class AccountCreatedV1ToV2Upcaster implements EventUpcaster {
 }
 ```
 
-### Configuration
+Register the upcaster as a Spring `@Component`. The `EventUpcastingService` (created by `EventSourcingAutoConfiguration`) discovers all `EventUpcaster` beans and applies them in priority order during event deserialization. Multiple upcasters can be chained (V1 to V2 to V3).
 
-```yaml
-firefly:
-  eventsourcing:
-    upcasting:
-      enabled: true
-      strict-mode: false  # If true, fail on missing upcasters
-```
+## Summary of Activation Conditions
 
----
+| Enhancement | Property | Default | Classpath Requirement |
+|-------------|----------|---------|----------------------|
+| Circuit Breakers | `firefly.eventsourcing.resilience.circuit-breaker.enabled` | `false` | Resilience4j `CircuitBreaker` |
+| Metrics | `firefly.eventsourcing.performance.metrics-enabled` | `true` | Micrometer `MeterRegistry` |
+| Health Indicators | `firefly.eventsourcing.performance.health-checks-enabled` | `true` | Spring Boot Actuator `HealthIndicator` |
+| Multi-Tenancy | `firefly.eventsourcing.multitenancy.enabled` | `false` | None |
+| Event Upcasting | Automatic | Always on | None |
+| OpenTelemetry Tracing | Deprecated | N/A | Use `fireflyframework-observability` instead |
 
-## 4. Multi-tenancy Support
+## Next Steps
 
-### Overview
-Tenant isolation framework for multi-tenant event sourcing applications.
-
-### Components
-
-#### TenantContext
-- **Location**: `org.fireflyframework.eventsourcing.multitenancy.TenantContext`
-- **Purpose**: Reactive context holder for tenant information
-
-```java
-// Set tenant context
-return eventStore.appendEvents(...)
-    .contextWrite(TenantContext.withTenantId("tenant-123"));
-
-// Get current tenant
-String tenantId = TenantContext.getCurrentTenantId().block();
-```
-
-#### MultiTenancyConfiguration
-- **Location**: `org.fireflyframework.eventsourcing.multitenancy.MultiTenancyConfiguration`
-- **Purpose**: Auto-configuration for multi-tenancy
-- **Activation**: Set `firefly.eventsourcing.multitenancy.enabled=true`
-
-### Features
-
-- **Tenant Context Propagation**: Automatic propagation through reactive streams
-- **Strict Mode**: Enforce tenant filtering (reject events without tenant ID)
-- **Non-Strict Mode**: Allow events without tenant ID
-- **Metadata-based**: Stores tenant ID in event metadata
-
-### Configuration
-
-```yaml
-firefly:
-  eventsourcing:
-    multitenancy:
-      enabled: true
-      strict-mode: true  # Enforce strict tenant filtering
-      default-tenant: default
-```
-
-### Usage Example
-
-```java
-@Service
-public class TenantAwareService {
-    
-    private final EventStore eventStore;
-    
-    public Mono<Void> createAccount(String tenantId, AccountCreatedEvent event) {
-        return eventStore.appendEvents(...)
-                .contextWrite(TenantContext.withTenantId(tenantId));
-    }
-    
-    public Mono<EventStream> loadAccount(String tenantId, UUID accountId) {
-        return eventStore.loadEventStream(accountId, "Account")
-                .contextWrite(TenantContext.withTenantId(tenantId));
-    }
-}
-```
-
----
-
-## Dependencies
-
-### Required Dependencies
-
-All optional enhancements use optional dependencies that are only loaded when enabled:
-
-```xml
-<!-- Circuit Breaker -->
-<dependency>
-    <groupId>io.github.resilience4j</groupId>
-    <artifactId>resilience4j-spring-boot3</artifactId>
-    <optional>true</optional>
-</dependency>
-
-<!-- Distributed Tracing -->
-<dependency>
-    <groupId>io.opentelemetry</groupId>
-    <artifactId>opentelemetry-api</artifactId>
-    <version>1.32.0</version>
-    <optional>true</optional>
-</dependency>
-```
-
----
-
-## Testing
-
-All enhancements include comprehensive tests:
-
-- Circuit breaker state transitions
-- Event upcasting chains
-- Multi-tenancy isolation
-
-Run tests with:
-```bash
-mvn clean test
-```
-
----
-
-## Performance Impact
-
-### Circuit Breaker
-- **Overhead**: Minimal (~1-2% latency increase)
-- **Benefit**: Prevents cascading failures, improves overall system stability
-
-### Distributed Tracing
-- **Overhead**: Low (~2-5% latency increase with 100% sampling)
-- **Recommendation**: Use sampling in production (e.g., 10% sampling rate)
-
-### Event Upcasting
-- **Overhead**: Only applies when loading old events
-- **Impact**: Proportional to number of upcasters in chain
-
-### Multi-tenancy
-- **Overhead**: Minimal (context lookup and metadata filtering)
-- **Benefit**: Strong tenant isolation without database-level separation
-
----
-
-## Best Practices
-
-1. **Circuit Breaker**:
-   - Monitor circuit breaker metrics
-   - Adjust thresholds based on your SLAs
-   - Set up alerts for circuit open events
-
-2. **Distributed Tracing**:
-   - Use sampling in production (10-20%)
-   - Include business context in span attributes
-   - Integrate with APM tools (Jaeger, Zipkin, etc.)
-
-3. **Event Upcasting**:
-   - Keep upcaster chains short (max 2-3 versions)
-   - Test upcasters thoroughly
-   - Consider snapshot-based migration for large version jumps
-
-4. **Multi-tenancy**:
-   - Always use strict mode in production
-   - Set tenant context at API gateway/controller level
-   - Include tenant ID in all logs and metrics
-
----
-
-## Migration Guide
-
-### Enabling Circuit Breaker
-
-1. Add configuration:
-```yaml
-firefly.eventsourcing.resilience.circuit-breaker.enabled=true
-```
-
-2. Monitor metrics:
-```java
-@Autowired
-private CircuitBreakerRegistry circuitBreakerRegistry;
-
-public void checkCircuitBreakerState() {
-    CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("eventStore");
-    log.info("Circuit breaker state: {}", cb.getState());
-}
-```
-
-### Enabling Distributed Tracing
-
-1. Add OpenTelemetry dependencies
-2. Configure exporter
-3. Enable tracing:
-```yaml
-firefly.eventsourcing.tracing.enabled=true
-```
-
-### Implementing Event Upcasting
-
-1. Create upcaster implementations
-2. Register as Spring beans
-3. Enable upcasting:
-```yaml
-firefly.eventsourcing.upcasting.enabled=true
-```
-
-### Enabling Multi-tenancy
-
-1. Enable multi-tenancy:
-```yaml
-firefly.eventsourcing.multitenancy.enabled=true
-```
-
-2. Set tenant context in controllers:
-```java
-@PostMapping("/accounts")
-public Mono<Account> createAccount(@RequestHeader("X-Tenant-ID") String tenantId, ...) {
-    return accountService.createAccount(...)
-            .contextWrite(TenantContext.withTenantId(tenantId));
-}
-```
-
----
-
-## Troubleshooting
-
-### Circuit Breaker Not Working
-- Check if `resilience4j-spring-boot3` is on classpath
-- Verify configuration is enabled
-- Check logs for circuit breaker initialization
-
-### Tracing Not Appearing
-- Verify OpenTelemetry exporter is configured
-- Check sampling rate (set to 1.0 for testing)
-- Ensure OTLP endpoint is reachable
-
-### Upcasting Not Applied
-- Verify upcasters are registered as Spring beans
-- Check `canUpcast()` method logic
-- Enable debug logging for `EventUpcastingService`
-
-### Tenant Isolation Issues
-- Verify tenant context is set before event store operations
-- Check strict mode configuration
-- Review event metadata for tenant ID presence
-
+- [Configuration](configuration.md) -- full property reference for all enhancements
+- [Architecture](architecture.md) -- understand the auto-configuration chain
+- [API Reference](api-reference.md) -- detailed method signatures
+- [Testing](testing.md) -- testing strategies including circuit breaker behavior

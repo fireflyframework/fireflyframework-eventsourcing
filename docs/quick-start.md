@@ -1,49 +1,15 @@
-# Quick Start Guide
+# Quick Start
 
-Get up and running with the Firefly Event Sourcing Library in 5 minutes.
-
-> **💡 New to Event Sourcing?** Start with our comprehensive [Account Ledger Tutorial](./tutorial-account-ledger.md) that explains all concepts in depth with a complete working example.
-
-This quick start guide shows you how to set up the library and build a simple Account Ledger system. For a deeper understanding of why each component is necessary, see the [full tutorial](./tutorial-account-ledger.md).
-
-## 🗄️ **Important: What Gets a Database Table?**
-
-Before you start, understand this critical concept:
-
-| Component | Has Table? | Why? |
-|-----------|------------|------|
-| **Events** | ✅ YES (`events` table) | Source of truth, immutable history |
-| **Snapshots** | ✅ YES (`snapshots` table) | Performance optimization |
-| **Read Models** | ✅ YES (e.g., `account_ledger_read_model`) | Fast queries |
-| **Aggregates** | ❌ **NO TABLE** | Reconstructed from events in-memory |
-
-```java
-// ❌ WRONG: Do NOT create a table for aggregates
-@Table("account_ledger")
-public class AccountLedger extends AggregateRoot { }
-
-// ✅ CORRECT: Aggregates have no @Table annotation
-public class AccountLedger extends AggregateRoot {
-    // Lives in memory only!
-}
-
-// ✅ CORRECT: Read models DO have tables
-@Table("account_ledger_read_model")
-public class AccountLedgerReadModel { }
-```
-
-**The Golden Rule:** If you create a table for your aggregate, you're doing traditional CRUD, not event sourcing!
+Build your first event-sourced application with Firefly in six steps.
 
 ## Prerequisites
 
 - Java 21+
-- Spring Boot 3.5+
-- R2DBC compatible database (PostgreSQL recommended)
-- Maven or Gradle
+- Maven 3.9+
+- PostgreSQL running locally (or use Testcontainers)
+- A Spring Boot 3.x project
 
-## Step 1: Add Dependencies
-
-### Maven
+## Step 1: Add Dependency
 
 ```xml
 <dependency>
@@ -51,483 +17,245 @@ public class AccountLedgerReadModel { }
     <artifactId>fireflyframework-eventsourcing</artifactId>
     <version>26.02.06</version>
 </dependency>
-
-<!-- Database driver -->
-<dependency>
-    <groupId>org.postgresql</groupId>
-    <artifactId>r2dbc-postgresql</artifactId>
-</dependency>
 ```
 
-### Gradle
+The library brings in R2DBC, Flyway, Jackson, and Spring Boot Actuator transitively.
 
-```kotlin
-implementation 'org.fireflyframework:fireflyframework-eventsourcing:26.02.06'
-implementation 'org.postgresql:r2dbc-postgresql'
-```
-
-## Step 2: Database Setup
-
-### Option 1: Use the provided initialization script
-
-```bash
-psql -h localhost -U firefly -d firefly -f docs/schema/postgresql-init.sql
-```
-
-### Option 2: Create tables manually
-
-```sql
--- PostgreSQL
-CREATE TABLE events (
-    event_id UUID PRIMARY KEY,
-    aggregate_id UUID NOT NULL,
-    aggregate_type VARCHAR(255) NOT NULL,
-    aggregate_version BIGINT NOT NULL,
-    global_sequence BIGSERIAL UNIQUE,
-    event_type VARCHAR(255) NOT NULL,
-    event_data JSONB NOT NULL,
-    metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(aggregate_id, aggregate_version)
-);
-
--- Optional: Create snapshots table for performance optimization
-CREATE TABLE snapshots (
-    aggregate_id UUID NOT NULL,
-    aggregate_type VARCHAR(255) NOT NULL,
-    aggregate_version BIGINT NOT NULL,
-    snapshot_data JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    PRIMARY KEY (aggregate_id, aggregate_type)
-);
-
--- Indexes
-CREATE INDEX idx_events_aggregate ON events(aggregate_id, aggregate_type);
-CREATE INDEX idx_events_global_sequence ON events(global_sequence);
-CREATE INDEX idx_events_type ON events(event_type);
-CREATE INDEX idx_snapshots_version ON snapshots(aggregate_version);
-```
-
-## Step 3: Configuration
-
-Add to your `application.yml`:
+## Step 2: Configure R2DBC and Flyway
 
 ```yaml
 spring:
   r2dbc:
-    url: r2dbc:postgresql://localhost:5432/firefly
-    username: firefly
-    password: password
+    url: r2dbc:postgresql://localhost:5432/myapp
+    username: postgres
+    password: postgres
+
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://localhost:5432/myapp
+    user: postgres
+    password: postgres
+    locations: classpath:db/migration
 
 firefly:
   eventsourcing:
     enabled: true
+    event-scan-packages: "com.example.myapp"
     store:
       type: r2dbc
-      batch-size: 100
     snapshot:
       enabled: true
       threshold: 50
     publisher:
-      enabled: true
-      type: AUTO
+      enabled: false
 ```
 
-## Step 4: Create Domain Events
+Flyway requires a JDBC URL (it does not support R2DBC). The library ships with 8 migration scripts that create the `events`, `snapshots`, `event_outbox`, and `projection_positions` tables automatically.
 
-Use the `@DomainEvent` annotation for automatic event type registration:
+The `event-scan-packages` property tells the `EventTypeRegistry` where to scan for `@DomainEvent` classes. The default is `org.fireflyframework`.
+
+## Step 3: Define Domain Events
+
+Create events that extend `AbstractDomainEvent` and are annotated with `@DomainEvent`:
 
 ```java
-package org.fireflyframework.eventsourcing.examples.ledger.events;
+package com.example.myapp.events;
 
+import org.fireflyframework.eventsourcing.annotation.DomainEvent;
 import org.fireflyframework.eventsourcing.domain.AbstractDomainEvent;
-import org.fireflyframework.eventsourcing.domain.DomainEvent;
-import lombok.Getter;
-
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.UUID;
 
+@DomainEvent("task.created")
+@SuperBuilder
 @Getter
-@DomainEvent(eventType = "AccountOpened", version = 1)
-public class AccountOpenedEvent extends AbstractDomainEvent {
-    private final String accountNumber;
-    private final String accountType;
-    private final UUID customerId;
-    private final BigDecimal initialDeposit;
-    private final String currency;
-
-    public AccountOpenedEvent(UUID aggregateId, String accountNumber, String accountType,
-                             UUID customerId, BigDecimal initialDeposit, String currency) {
-        super(aggregateId);
-        this.accountNumber = accountNumber;
-        this.accountType = accountType;
-        this.customerId = customerId;
-        this.initialDeposit = initialDeposit;
-        this.currency = currency;
-    }
+@NoArgsConstructor
+@AllArgsConstructor
+public class TaskCreatedEvent extends AbstractDomainEvent {
+    private String title;
+    private String description;
+    private String assignee;
 }
 
+@DomainEvent("task.completed")
+@SuperBuilder
 @Getter
-@DomainEvent(eventType = "MoneyDeposited", version = 1)
-public class MoneyDepositedEvent extends AbstractDomainEvent {
-    private final BigDecimal amount;
-    private final String source;
-    private final String reference;
-    private final String depositedBy;
-
-    public MoneyDepositedEvent(UUID aggregateId, BigDecimal amount, String source,
-                              String reference, String depositedBy) {
-        super(aggregateId);
-        this.amount = amount;
-        this.source = source;
-        this.reference = reference;
-        this.depositedBy = depositedBy;
-    }
+@NoArgsConstructor
+@AllArgsConstructor
+public class TaskCompletedEvent extends AbstractDomainEvent {
+    private String completedBy;
 }
 ```
 
-> **📚 See the [Account Ledger Tutorial](./tutorial-account-ledger.md#step-1-domain-events)** for all 6 domain events with detailed explanations.
+The `@DomainEvent` annotation does two things:
+1. Sets the event type identifier used for serialization (e.g., `"task.created"`)
+2. Bridges to `@JsonTypeName` so Jackson can deserialize events polymorphically
 
-## Step 5: Create Aggregate Root
+The `@SuperBuilder` annotation from Lombok enables the builder pattern, including the metadata helpers inherited from `AbstractDomainEvent` (`.correlationId(...)`, `.userId(...)`, `.source(...)`).
 
-The aggregate enforces business rules and generates events:
+## Step 4: Create the Aggregate
 
 ```java
-package org.fireflyframework.eventsourcing.examples.ledger;
+package com.example.myapp.aggregate;
 
+import com.example.myapp.events.*;
 import org.fireflyframework.eventsourcing.aggregate.AggregateRoot;
-import org.fireflyframework.eventsourcing.aggregate.EventHandler;
-import org.fireflyframework.eventsourcing.examples.ledger.events.*;
-import org.fireflyframework.eventsourcing.examples.ledger.exceptions.*;
 import lombok.Getter;
-
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.UUID;
 
 @Getter
-public class AccountLedger extends AggregateRoot {
+public class Task extends AggregateRoot {
 
-    private String accountNumber;
-    private String accountType;
-    private UUID customerId;
-    private BigDecimal balance;
-    private String currency;
-    private boolean frozen;
-    private boolean closed;
-    private Instant openedAt;
+    private String title;
+    private String description;
+    private String assignee;
+    private boolean completed;
 
-    // Constructor for creating new accounts
-    public AccountLedger(UUID id, String accountNumber, String accountType,
-                        UUID customerId, BigDecimal initialDeposit, String currency) {
-        super(id, "AccountLedger");
+    // Constructor for loading from event store
+    public Task(UUID id) {
+        super(id, "Task");
+    }
 
-        // Validation
-        if (initialDeposit.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Initial deposit cannot be negative");
+    // Constructor for creating a new task (command)
+    public Task(UUID id, String title, String description, String assignee) {
+        super(id, "Task");
+
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("Title is required");
         }
 
-        // Generate event
-        applyChange(new AccountOpenedEvent(id, accountNumber, accountType,
-                                          customerId, initialDeposit, currency));
+        applyChange(TaskCreatedEvent.builder()
+                .aggregateId(id)
+                .title(title)
+                .description(description)
+                .assignee(assignee)
+                .build());
     }
 
-    // Constructor for loading from events
-    public AccountLedger(UUID id) {
-        super(id, "AccountLedger");
-    }
-
-    // Business method: Deposit money
-    public void deposit(BigDecimal amount, String source, String reference, String depositedBy) {
-        validateAccountIsActive();
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Deposit amount must be positive");
+    // Command method
+    public void complete(String completedBy) {
+        if (completed) {
+            throw new IllegalStateException("Task is already completed");
         }
-        applyChange(new MoneyDepositedEvent(getId(), amount, source, reference, depositedBy));
+
+        applyChange(TaskCompletedEvent.builder()
+                .aggregateId(getId())
+                .completedBy(completedBy)
+                .build());
     }
 
-    // Event handler
-    @EventHandler
-    public void apply(AccountOpenedEvent event) {
-        this.accountNumber = event.getAccountNumber();
-        this.accountType = event.getAccountType();
-        this.customerId = event.getCustomerId();
-        this.balance = event.getInitialDeposit();
-        this.currency = event.getCurrency();
-        this.frozen = false;
-        this.closed = false;
-        this.openedAt = Instant.now();
+    // Event handlers (private, named "on", single event parameter)
+    private void on(TaskCreatedEvent event) {
+        this.title = event.getTitle();
+        this.description = event.getDescription();
+        this.assignee = event.getAssignee();
+        this.completed = false;
     }
 
-    @EventHandler
-    public void apply(MoneyDepositedEvent event) {
-        this.balance = this.balance.add(event.getAmount());
-    }
-
-    private void validateAccountIsActive() {
-        if (closed) throw new AccountClosedException(getId());
-        if (frozen) throw new AccountFrozenException(getId());
+    private void on(TaskCompletedEvent event) {
+        this.completed = true;
     }
 }
 ```
 
-> **📚 See the [Account Ledger Tutorial](./tutorial-account-ledger.md#step-2-the-aggregate-root)** for the complete implementation with all business methods and event handlers.
+Key rules:
+- Call `super(id, "AggregateType")` in every constructor. The version starts at `-1`.
+- Use `applyChange(event)` to produce new events. This calls the handler and increments the version.
+- Event handler methods must be named `on`, accept a single event parameter, and can be `private`.
+- Command methods validate business rules; event handlers only update state.
 
-## Step 6: Create Service Layer
-
-Use `@EventSourcingTransactional` for automatic event persistence:
+## Step 5: Create the Service
 
 ```java
-package org.fireflyframework.eventsourcing.examples.ledger;
+package com.example.myapp.service;
 
-import org.fireflyframework.eventsourcing.annotation.EventSourcingTransactional;
-import org.fireflyframework.eventsourcing.snapshot.SnapshotStore;
+import com.example.myapp.aggregate.Task;
 import org.fireflyframework.eventsourcing.store.EventStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-
-import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class AccountLedgerService {
+public class TaskService {
 
     private final EventStore eventStore;
-    private final SnapshotStore snapshotStore;
 
-    @EventSourcingTransactional
-    public Mono<AccountLedger> openAccount(String accountNumber, String accountType,
-                                          UUID customerId, BigDecimal initialDeposit,
-                                          String currency) {
-        UUID accountId = UUID.randomUUID();
-        AccountLedger account = new AccountLedger(accountId, accountNumber, accountType,
-                                                  customerId, initialDeposit, currency);
+    public Mono<Task> createTask(String title, String description, String assignee) {
+        UUID taskId = UUID.randomUUID();
+        Task task = new Task(taskId, title, description, assignee);
 
+        // expectedVersion = -1 because this is a new aggregate
         return eventStore.appendEvents(
-                accountId,
-                "AccountLedger",
-                account.getUncommittedEvents(),
-                -1L  // -1 for new aggregate
+                taskId, "Task", task.getUncommittedEvents(), -1L
             )
-            .doOnSuccess(stream -> account.markEventsAsCommitted())
-            .thenReturn(account);
+            .doOnSuccess(stream -> task.markEventsAsCommitted())
+            .thenReturn(task);
     }
 
-    @EventSourcingTransactional
-    public Mono<AccountLedger> deposit(UUID accountId, BigDecimal amount, String source,
-                                      String reference, String depositedBy) {
-        return loadAggregate(accountId)
-                .flatMap(account -> {
-                    account.deposit(amount, source, reference, depositedBy);
-
-                    return eventStore.appendEvents(
-                            accountId,
-                            "AccountLedger",
-                            account.getUncommittedEvents(),
-                            account.getCurrentVersion()
-                        )
-                        .doOnSuccess(stream -> account.markEventsAsCommitted())
-                        .thenReturn(account);
-                });
+    public Mono<Task> completeTask(UUID taskId, String completedBy) {
+        return loadTask(taskId)
+            .doOnNext(task -> task.complete(completedBy))
+            .flatMap(task -> eventStore.appendEvents(
+                    taskId, "Task", task.getUncommittedEvents(),
+                    task.getCurrentVersion() - task.getUncommittedEventCount()
+                )
+                .doOnSuccess(stream -> task.markEventsAsCommitted())
+                .thenReturn(task));
     }
 
-    private Mono<AccountLedger> loadAggregate(UUID accountId) {
-        // Try to load from snapshot first for performance
-        return snapshotStore.loadLatestSnapshot(accountId, "AccountLedger")
-                .flatMap(snapshot -> {
-                    AccountLedger account = AccountLedger.fromSnapshot(
-                        (AccountLedgerSnapshot) snapshot);
+    public Mono<Task> getTask(UUID taskId) {
+        return loadTask(taskId);
+    }
 
-                    // Load events after snapshot
-                    return eventStore.loadEventStream(accountId, "AccountLedger",
-                                                     snapshot.getVersion() + 1)
-                            .map(stream -> {
-                                account.loadFromHistory(stream.getEvents());
-                                return account;
-                            });
-                })
-                .switchIfEmpty(
-                    // No snapshot, load all events
-                    eventStore.loadEventStream(accountId, "AccountLedger")
-                            .map(stream -> {
-                                AccountLedger account = new AccountLedger(accountId);
-                                account.loadFromHistory(stream.getEvents());
-                                return account;
-                            })
-                );
+    private Mono<Task> loadTask(UUID taskId) {
+        return eventStore.loadEventStream(taskId, "Task")
+            .map(stream -> {
+                Task task = new Task(taskId);
+                task.loadFromHistory(stream.getEvents());
+                return task;
+            });
     }
 }
 ```
 
-> **📚 See the [Account Ledger Tutorial](./tutorial-account-ledger.md#step-4-the-service-layer)** for the complete service with all operations and snapshot management.
+The `expectedVersion` for `appendEvents`:
+- Use `-1L` when creating a new aggregate (no events exist yet)
+- Use `task.getCurrentVersion() - task.getUncommittedEventCount()` when updating an existing aggregate (this gives the version before the new events were applied)
 
-## Step 7: Create Controller
+## Step 6: Run and Verify
+
+Start your application. Flyway will create the database tables. The `EventTypeRegistry` will scan for `@DomainEvent` classes and register them with Jackson.
+
+Test with a REST controller or a test:
 
 ```java
-package com.example.controller;
+@SpringBootTest
+class TaskServiceTest {
 
-import com.example.service.AccountService;
-import com.example.domain.aggregates.Account;
-import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
+    @Autowired
+    TaskService taskService;
 
-import java.math.BigDecimal;
-import java.util.UUID;
+    @Test
+    void createAndCompleteTask() {
+        Task task = taskService.createTask("Write docs", "Write the quick start guide", "dev-1")
+            .block();
 
-@RestController
-@RequestMapping("/api/accounts")
-public class AccountController {
-    
-    private final AccountService accountService;
-    
-    public AccountController(AccountService accountService) {
-        this.accountService = accountService;
-    }
-    
-    @PostMapping
-    public Mono<AccountResponse> createAccount(@RequestBody CreateAccountRequest request) {
-        return accountService.createAccount(request.accountNumber(), request.initialBalance())
-                .map(this::toResponse);
-    }
-    
-    @GetMapping("/{accountId}")
-    public Mono<AccountResponse> getAccount(@PathVariable UUID accountId) {
-        return accountService.loadAccount(accountId)
-                .map(this::toResponse);
-    }
-    
-    @PostMapping("/{accountId}/deposit")
-    public Mono<AccountResponse> deposit(
-            @PathVariable UUID accountId,
-            @RequestBody DepositRequest request) {
-        return accountService.depositMoney(accountId, request.amount(), request.reference())
-                .map(this::toResponse);
-    }
-    
-    private AccountResponse toResponse(Account account) {
-        return new AccountResponse(
-                account.getId(),
-                account.getAccountNumber(),
-                account.getBalance(),
-                account.isActive()
-        );
-    }
-}
+        assertThat(task.getTitle()).isEqualTo("Write docs");
+        assertThat(task.getCurrentVersion()).isEqualTo(0L); // one event applied, version = 0
 
-// DTOs
-record CreateAccountRequest(String accountNumber, BigDecimal initialBalance) {}
-record DepositRequest(BigDecimal amount, String reference) {}
-record AccountResponse(UUID id, String accountNumber, BigDecimal balance, boolean active) {}
-```
-
-## Step 8: Run the Application
-
-```java
-package com.example;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-@SpringBootApplication
-public class EventSourcingDemoApplication {
-    
-    public static void main(String[] args) {
-        SpringApplication.run(EventSourcingDemoApplication.class, args);
+        Task completed = taskService.completeTask(task.getId(), "dev-1").block();
+        assertThat(completed.isCompleted()).isTrue();
+        assertThat(completed.getCurrentVersion()).isEqualTo(1L); // two events total, version = 1
     }
 }
 ```
 
-## Step 9: Test Your API
+## Next Steps
 
-```bash
-# Create account
-curl -X POST http://localhost:8080/api/accounts \
-  -H "Content-Type: application/json" \
-  -d '{"accountNumber": "ACC001", "initialBalance": 1000.00}'
-
-# Response: {"id": "550e8400-e29b-41d4-a716-446655440000", ...}
-
-# Deposit money
-curl -X POST http://localhost:8080/api/accounts/550e8400-e29b-41d4-a716-446655440000/deposit \
-  -H "Content-Type: application/json" \
-  -d '{"amount": 250.00, "reference": "DEPOSIT-001"}'
-
-# Get account
-curl http://localhost:8080/api/accounts/550e8400-e29b-41d4-a716-446655440000
-```
-
-## Step 10: Run All Tests
-
-Verify everything works correctly:
-
-```bash
-# Run all tests including integration tests with PostgreSQL
-mvn test
-
-# Run with specific profile
-mvn test -Dspring.profiles.active=dev
-
-# Run only PostgreSQL integration tests
-mvn test -Dtest=PostgreSqlEventStoreIntegrationTest
-```
-
-## Step 11: Production Setup
-
-### Environment Variables
-
-Set these environment variables for production:
-
-```bash
-export DB_HOST=your-postgres-host
-export DB_PORT=5432
-export DB_NAME=your_database
-export DB_USERNAME=your_username
-export DB_PASSWORD=your_password
-export DB_SSL_MODE=require
-```
-
-### Database Migration
-
-Run Flyway migrations:
-
-```bash
-# Automatic with Spring Boot
-spring.flyway.enabled=true
-
-# Or manually
-mvn flyway:migrate
-```
-
-## What's Next?
-
-### 📚 **Deep Dive into Event Sourcing**
-- **[Account Ledger Tutorial](./tutorial-account-ledger.md)** - Complete guide with all concepts explained
-- **[Event Sourcing Explained](./event-sourcing-explained.md)** - Understanding the fundamentals
-- **[Architecture Overview](./architecture.md)** - System design and patterns
-
-### 🔧 **Advanced Topics**
-- **[Testing Guide](./testing.md)** - Comprehensive testing with Testcontainers
-- **[Configuration Reference](./configuration.md)** - All configuration options
-- **[Database Schema](./database-schema.md)** - Understanding the data model
-- **[API Reference](./api-reference.md)** - Complete API documentation
-
-## Troubleshooting
-
-### Common Issues
-
-**Events table not found**
-- Ensure you've created the database schema
-- Check R2DBC connection configuration
-
-**Serialization errors**
-- Verify `@JsonTypeName` annotations on events
-- Ensure Jackson is properly configured
-
-**Concurrency exceptions**
-- Check that you're using the correct aggregate version
-- Implement proper retry logic in your services
-
-For more issues, see the [Troubleshooting Guide](./troubleshooting.md).
+- [Architecture](architecture.md) -- understand the system design
+- [API Reference](api-reference.md) -- explore the full API
+- [Account Ledger Tutorial](tutorial-account-ledger.md) -- see a complete example with snapshots and projections
+- [Configuration](configuration.md) -- tune all properties
