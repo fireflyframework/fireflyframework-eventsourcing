@@ -156,7 +156,7 @@ import java.util.UUID;
  * {@code
  * // Pattern 1: Creation
  * BankAccount account = new BankAccount(UUID.randomUUID(), "12345", BigDecimal.valueOf(1000));
- * eventStore.appendEvents(account.getId(), "BankAccount", account.getUncommittedEvents(), 0);
+ * eventStore.appendEvents(account.getId(), "BankAccount", account.getUncommittedEvents(), -1);
  * account.markEventsAsCommitted();
  *
  * // Pattern 2: Loading and modifying
@@ -219,7 +219,7 @@ public abstract class AggregateRoot {
 
         this.id = id;
         this.aggregateType = aggregateType.trim();
-        this.version = 0L;
+        this.version = -1L;
 
         log.debug("Created new aggregate: id={}, type={}", id, aggregateType);
     }

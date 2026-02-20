@@ -23,6 +23,7 @@ import org.fireflyframework.eventsourcing.snapshot.SnapshotTrigger;
 import org.fireflyframework.eventsourcing.snapshot.r2dbc.R2dbcSnapshotStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.r2dbc.core.DatabaseClient;
@@ -35,6 +36,7 @@ import org.springframework.r2dbc.core.DatabaseClient;
  */
 @AutoConfiguration
 @ConditionalOnProperty(prefix = "firefly.eventsourcing.snapshot", name = "enabled", havingValue = "true", matchIfMissing = true)
+@EnableConfigurationProperties(EventSourcingProperties.class)
 @Slf4j
 public class SnapshotAutoConfiguration {
 

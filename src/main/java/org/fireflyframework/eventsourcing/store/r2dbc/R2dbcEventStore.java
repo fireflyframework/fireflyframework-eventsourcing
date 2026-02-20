@@ -44,7 +44,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * R2DBC-based implementation of EventStore.
@@ -87,7 +86,6 @@ public class R2dbcEventStore implements EventStore {
     private final ReactiveTransactionManager transactionManager;
     private final TransactionalOperator transactionalOperator;
     private final ConnectionFactory connectionFactory;
-    private final AtomicLong globalSequenceCounter = new AtomicLong(0);
 
     // Optional: Event Outbox Service for reliable event publishing
     @Autowired(required = false)
@@ -426,14 +424,13 @@ public class R2dbcEventStore implements EventStore {
                 });
     }
 
-    private List<StoredEventEnvelope> createEventEnvelopes(List<Event> events, String aggregateType, 
+    private List<StoredEventEnvelope> createEventEnvelopes(List<Event> events, String aggregateType,
                                                     long baseVersion, Map<String, Object> metadata) {
-        long globalSeq = globalSequenceCounter.incrementAndGet(); // Simplified - should be atomic in DB
-        
         return events.stream()
                 .map(event -> {
                     long version = baseVersion + events.indexOf(event) + 1;
-                    return StoredEventEnvelope.of(event, aggregateType, version, globalSeq + events.indexOf(event), metadata);
+                    // globalSequence is 0 here — the DB assigns the real value via BIGSERIAL
+                    return StoredEventEnvelope.of(event, aggregateType, version, 0L, metadata);
                 })
                 .toList();
     }
@@ -481,9 +478,9 @@ public class R2dbcEventStore implements EventStore {
     private Mono<Void> insertEvents(List<StoredEventEnvelope> envelopes) {
         String sql = """
                 INSERT INTO events (event_id, aggregate_id, aggregate_type, aggregate_version,
-                                  global_sequence, event_type, event_data, metadata, created_at)
+                                  event_type, event_data, metadata, created_at)
                 VALUES (:eventId, :aggregateId, :aggregateType, :aggregateVersion,
-                       :globalSequence, :eventType, :eventData, :metadata, :createdAt)
+                       :eventType, :eventData, :metadata, :createdAt)
                 """;
 
         return Flux.fromIterable(envelopes)
@@ -491,13 +488,12 @@ public class R2dbcEventStore implements EventStore {
                     try {
                         String serializedMetadata = serializeMetadata(envelope.getMetadata());
                         String eventDataJson = serializeEvent(envelope.getEvent());
-                        
+
                         var spec = databaseClient.sql(sql)
                                 .bind("eventId", envelope.getEventId())
                                 .bind("aggregateId", envelope.getAggregateId())
                                 .bind("aggregateType", envelope.getAggregateType())
                                 .bind("aggregateVersion", envelope.getAggregateVersion())
-                                .bind("globalSequence", envelope.getGlobalSequence())
                                 .bind("eventType", envelope.getEventType())
                                 .bind("createdAt", envelope.getCreatedAt());
                         

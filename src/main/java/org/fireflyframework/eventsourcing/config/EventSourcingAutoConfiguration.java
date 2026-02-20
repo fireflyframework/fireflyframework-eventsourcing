@@ -111,6 +111,7 @@ public class EventSourcingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBean(MeterRegistry.class)
     public EventStoreMetrics eventStoreMetrics(MeterRegistry meterRegistry) {
         log.debug("Creating EventStoreMetrics bean");
         return new EventStoreMetrics(meterRegistry);
@@ -131,7 +132,7 @@ public class EventSourcingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnBean(ReactiveTransactionManager.class)
+    @ConditionalOnBean({ReactiveTransactionManager.class, EventSourcingPublisher.class})
     public EventSourcingTransactionalAspect eventSourcingTransactionalAspect(
             ReactiveTransactionManager transactionManager,
             EventSourcingPublisher eventPublisher) {
@@ -154,6 +155,7 @@ public class EventSourcingAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBean({EventOutboxRepository.class, EventSourcingPublisher.class})
     public EventOutboxService eventOutboxService(
             EventOutboxRepository outboxRepository,
             EventSourcingPublisher eventPublisher,

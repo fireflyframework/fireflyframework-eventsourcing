@@ -21,9 +21,11 @@ import org.fireflyframework.eventsourcing.store.EventStore;
 import org.fireflyframework.eventsourcing.store.r2dbc.R2dbcEventStore;
 import io.r2dbc.spi.ConnectionFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
@@ -38,7 +40,9 @@ import org.springframework.transaction.reactive.TransactionalOperator;
  * the configured store type (R2DBC, MongoDB, etc.).
  */
 @AutoConfiguration
+@AutoConfigureAfter(R2dbcBeansAutoConfiguration.class)
 @ConditionalOnProperty(prefix = "firefly.eventsourcing.store", name = "enabled", havingValue = "true", matchIfMissing = true)
+@EnableConfigurationProperties(EventSourcingProperties.class)
 @Slf4j
 public class EventStoreAutoConfiguration {
 

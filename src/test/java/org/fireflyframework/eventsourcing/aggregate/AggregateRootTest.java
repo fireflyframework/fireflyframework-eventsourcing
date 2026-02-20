@@ -39,7 +39,7 @@ class AggregateRootTest {
         
         assertEquals(accountId, account.getId());
         assertEquals("Account", account.getAggregateType());
-        assertEquals(1L, account.getVersion()); // One event applied during construction
+        assertEquals(0L, account.getVersion()); // One event applied: version -1 → 0
         assertEquals(1, account.getUncommittedEventCount());
         assertTrue(account.hasUncommittedEvents());
         assertEquals("12345", account.getAccountNumber());
@@ -60,7 +60,7 @@ class AggregateRootTest {
         account.deposit(BigDecimal.valueOf(50));
         
         assertEquals(BigDecimal.valueOf(950), account.getBalance());
-        assertEquals(3L, account.getVersion()); // 1 (creation) + 1 (withdraw) + 1 (deposit)
+        assertEquals(2L, account.getVersion()); // 3 events applied: version -1 → 2
         assertEquals(2, account.getUncommittedEventCount()); // Only withdraw and deposit
         
         List<Event> uncommittedEvents = account.getUncommittedEvents();
@@ -81,7 +81,7 @@ class AggregateRootTest {
         account.markEventsAsCommitted();
         assertFalse(account.hasUncommittedEvents());
         assertEquals(0, account.getUncommittedEventCount());
-        assertEquals(2L, account.getVersion()); // Version remains the same
+        assertEquals(1L, account.getVersion()); // Version remains the same after commit
     }
 
     @Test
@@ -211,7 +211,7 @@ class AggregateRootTest {
         String toString = account.toString();
         assertTrue(toString.contains("TestAccount"));
         assertTrue(toString.contains(accountId.toString()));
-        assertTrue(toString.contains("version=1"));
+        assertTrue(toString.contains("version=0"));
         assertTrue(toString.contains("uncommittedEvents=1"));
     }
 
