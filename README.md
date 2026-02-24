@@ -1,6 +1,6 @@
 # Firefly Framework - Event Sourcing
 
-[![Version](https://img.shields.io/badge/version-26.02.06-blue.svg)](pom.xml)
+[![Version](https://img.shields.io/badge/version-26.02.07-blue.svg)](pom.xml)
 [![Java](https://img.shields.io/badge/Java-21+-orange.svg)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-green.svg)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
@@ -80,7 +80,7 @@ The aggregate version starts at **-1** and increments with each event applied vi
 <dependency>
     <groupId>org.fireflyframework</groupId>
     <artifactId>fireflyframework-eventsourcing</artifactId>
-    <version>26.02.06</version>
+    <version>26.02.07</version>
 </dependency>
 ```
 
