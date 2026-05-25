@@ -251,4 +251,4 @@ See [Configuration Reference](docs/configuration.md) for all properties and defa
 
 ## License
 
-Copyright 2024-2026 Firefly Software Solutions Inc. Licensed under the [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0).
+Copyright 2024-2026 Firefly Software Foundation. Licensed under the [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0).
